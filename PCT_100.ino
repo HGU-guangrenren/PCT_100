@@ -1,5 +1,5 @@
 #include "key.h"
-
+#include "relay.h"
 void setup()
 {
     key_init();

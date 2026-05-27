@@ -1,10 +1,10 @@
-#indef_VERSION_H_
+#ifndef _VERSION_H_
 #define _VERSION_H_
 
 
-#define VERSION "1.0.0"
+#define VERSION "V1.0"
 
-#define DEVICE_ID"PCT_100_005"
+#define DEVICE_ID "PCT_100_005"
 
 
 #define PROJECT_NAME "PCT_100_CTL"
