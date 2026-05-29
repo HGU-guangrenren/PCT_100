@@ -47,13 +47,13 @@ static int key2Event(void) {
             longTriggered = false;
         } else {
             st = lr;
-            if (!longTriggered && now - pressTime < 1500) {
+            if (!longTriggered && now - pressTime < 2000) {
                 return 1;
             }
         }
     }
 
-    if (lr != idle && !longTriggered && now - pressTime >= 1500) {
+    if (lr != idle && !longTriggered && now - pressTime >= 2000) {
         longTriggered = true;
         return 2;
     }
@@ -65,16 +65,16 @@ static Debounce sw1;
 static bool powerOn = false;
 static int mode = 0;
 static bool autoMode = false;
-static int lastManualMode = 1;
+static int lastManualMode = 4;
 
 // ------ Control API (called from MQTT) ------
 void power_on(void)
 {
     powerOn = true;
-    mode = 1;
-    led_on();
+    mode = 4;
+    led_off();
     fan_off();
-    Serial.println("POWER ON - Light");
+    Serial.println("POWER ON");
 }
 
 void power_off(void)
