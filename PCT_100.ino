@@ -1,31 +1,56 @@
-#include "key.h"
-#include "exti.h"
+#include "led.h"
 #include "version.h"
+
+// ------ 软件消抖（来自 gpio_demo）------
+struct Debounce {
+    int idle, st, lr;
+    unsigned long tc;
+    bool ready;
+};
+
+static bool isPress(int pin, Debounce &d) {
+    int r = digitalRead(pin);
+    if (!d.ready) {
+        d.idle = r; d.st = r; d.lr = r; d.ready = true;
+        return false;
+    }
+    if (r != d.lr) { d.lr = r; d.tc = millis(); }
+    if (millis() - d.tc >= 50 && d.lr != d.st) {
+        if (d.st == d.idle && d.lr != d.idle) {
+            d.st = d.lr;
+            return true;
+        }
+        d.st = d.lr;
+    }
+    return false;
+}
+
+static Debounce sw1, sw2;
 
 void setup()
 {
-    exti_init();
     Serial.begin(115200);
+    delay(100);
+
+    switch_init();
+    led_init();
+    fan_init();
+    fan_off();
+    led_on();
+
     Serial.println("System initialized!");
-    Serial.println("KEY1 toggles LED1, KEY2 toggles LED2");
+    Serial.println("SW1->LED, SW2->FAN");
 }
 
 void loop()
 {
-    static bool last_key1_state = false;
-    static bool last_key2_state = false;
-    
-    if (key1_state != last_key1_state)
-    {
-        Serial.print("KEY1: ");
-        Serial.println(key1_state ? "ON" : "OFF");
-        last_key1_state = key1_state;
+    if (isPress(SW1_PIN, sw1)) {
+        led_toggle();
+        Serial.println(digitalRead(LED_PIN) ? "LED ON" : "LED OFF");
     }
-    
-    if (key2_state != last_key2_state)
-    {
-        Serial.print("KEY2: ");
-        Serial.println(key2_state ? "ON" : "OFF");
-        last_key2_state = key2_state;
+
+    if (isPress(SW2_PIN, sw2)) {
+        fan_toggle();
+        Serial.println(digitalRead(FAN_PIN) ? "FAN ON" : "FAN OFF");
     }
 }

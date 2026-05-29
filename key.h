@@ -3,11 +3,11 @@
 
 #include "Arduino.h" 
 
-#define KEY1_PIN       21  
-#define KEY2_PIN       22  
+#define KEY1_PIN       10  
+#define KEY2_PIN       9  
 
-#define KEY1           digitalRead(KEY1_PIN)
-#define KEY2           digitalRead(KEY2_PIN)
+extern volatile bool key1_state;
+extern volatile bool key2_state;
 
 void key_init(void);
 void key1_isr(void);
