@@ -2,7 +2,7 @@
 #define _VERSION_H_
 
 
-#define VERSION "V2.3"
+#define VERSION "V3.4"
 
 #define DEVICE_ID "PCT_100_005"
 

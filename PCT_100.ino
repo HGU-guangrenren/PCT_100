@@ -156,9 +156,14 @@ void setup()
 
 void loop()
 {
-    // ------ KEY1: 总开关 ------
-    if (isPress(SW1_PIN, sw1)) {
-        if (powerOn) power_off(); else power_on();
+    // ------ KEY1: 自锁开关，直接读物理状态 ------
+    {
+        static int last = HIGH;
+        int cur = digitalRead(SW1_PIN);
+        if (cur != last) {
+            last = cur;
+            if (cur == HIGH) power_on(); else power_off();
+        }
     }
 
     // ------ KEY2: 短按切模式 / 长按切换自动/手动 ------
