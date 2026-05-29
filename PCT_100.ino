@@ -25,20 +25,26 @@ static bool isPress(int pin, Debounce &d) {
     return false;
 }
 
-// ------ KEY2 事件：0=无, 1=短按, 2=长按(1.5s) ------
+// ------ KEY2 事件：0=无, 1=短按, 2=长按(2s) ------
 static int key2Event(void) {
     static int idle = -1, st, lr;
     static unsigned long tc, pressTime;
     static bool ready = false, longTriggered = false;
+    static unsigned long bootTime;
 
     int r = digitalRead(SW2_PIN);
     if (!ready) {
-        idle = r; st = r; lr = r; ready = true;
+        idle = r; st = r; lr = r; bootTime = millis(); ready = true;
         return 0;
     }
 
     unsigned long now = millis();
     if (r != lr) { lr = r; tc = now; }
+
+    // 开机500ms内引脚稳定时同步idle，避免噪声导致误判
+    if (lr == st && now - tc > 100 && millis() - bootTime < 500) {
+        idle = st;
+    }
 
     if (now - tc >= 50 && lr != st) {
         if (st == idle && lr != idle) {
@@ -104,7 +110,10 @@ void toggle_auto(void)
     if (!powerOn) return;
     autoMode = !autoMode;
     if (autoMode) {
-        Serial.println("AUTO MODE");
+        mode = 4;
+        led_off();
+        fan_off();
+        Serial.println("AUTO MODE - All OFF");
     } else {
         Serial.println("MANUAL MODE");
         mode = lastManualMode;
