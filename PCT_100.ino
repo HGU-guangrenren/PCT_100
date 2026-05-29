@@ -1,7 +1,7 @@
 #include "led.h"
 #include "version.h"
 
-// ------ 软件消抖（来自 gpio_demo）------
+// ------ 软件消抖（通用短按）------
 struct Debounce {
     int idle, st, lr;
     unsigned long tc;
@@ -25,32 +25,144 @@ static bool isPress(int pin, Debounce &d) {
     return false;
 }
 
-static Debounce sw1, sw2;
+// ------ KEY2 事件：0=无, 1=短按, 2=长按(1.5s) ------
+static int key2Event(void) {
+    static int idle = -1, st, lr;
+    static unsigned long tc, pressTime;
+    static bool ready = false, longTriggered = false;
+
+    int r = digitalRead(SW2_PIN);
+    if (!ready) {
+        idle = r; st = r; lr = r; ready = true;
+        return 0;
+    }
+
+    unsigned long now = millis();
+    if (r != lr) { lr = r; tc = now; }
+
+    if (now - tc >= 50 && lr != st) {
+        if (st == idle && lr != idle) {
+            st = lr;
+            pressTime = now;
+            longTriggered = false;
+        } else {
+            st = lr;
+            if (!longTriggered && now - pressTime < 1500) {
+                return 1;
+            }
+        }
+    }
+
+    if (lr != idle && !longTriggered && now - pressTime >= 1500) {
+        longTriggered = true;
+        return 2;
+    }
+
+    return 0;
+}
+
+static Debounce sw1;
+static bool powerOn = false;
+static int mode = 0;
+static bool autoMode = false;
+static int lastManualMode = 1;
+
+// ------ Control API (called from MQTT) ------
+void power_on(void)
+{
+    powerOn = true;
+    mode = 1;
+    led_on();
+    fan_off();
+    Serial.println("POWER ON - Light");
+}
+
+void power_off(void)
+{
+    powerOn = false;
+    mode = 0;
+    led_off();
+    fan_off();
+    Serial.println("POWER OFF");
+}
+
+void set_mode(int m)
+{
+    if (!powerOn || autoMode) return;
+    mode = m;
+    switch (mode) {
+        case 1: led_on(); fan_off(); Serial.println("Light ON"); break;
+        case 2: led_off(); fan_on(); Serial.println("Fan ON"); break;
+        case 3: led_on(); fan_on(); Serial.println("Both ON"); break;
+        case 4: led_off(); fan_off(); Serial.println("Both OFF"); break;
+    }
+    lastManualMode = mode;
+}
+
+void toggle_auto(void)
+{
+    if (!powerOn) return;
+    autoMode = !autoMode;
+    if (autoMode) {
+        Serial.println("AUTO MODE");
+    } else {
+        Serial.println("MANUAL MODE");
+        mode = lastManualMode;
+        switch (mode) {
+            case 1: led_on(); fan_off(); break;
+            case 2: led_off(); fan_on(); break;
+            case 3: led_on(); fan_on(); break;
+            case 4: led_off(); fan_off(); break;
+        }
+    }
+}
+
+bool get_power_on(void) { return powerOn; }
+int  get_mode(void)     { return mode; }
+bool get_auto_mode(void) { return autoMode; }
 
 void setup()
 {
     Serial.begin(115200);
-    delay(100);
+    pinMode(6, OUTPUT);
+    digitalWrite(6, HIGH);
+
+    for (int i = 0; i < 5; i++) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("");
+    Serial.println("--- SYSTEM STARTED ---");
 
     switch_init();
     led_init();
     fan_init();
+    led_off();
     fan_off();
-    led_on();
+    digitalWrite(6, LOW);
 
     Serial.println("System initialized!");
-    Serial.println("SW1->LED, SW2->FAN");
+    Serial.println("KEY1=Power  KEY2=short:Mode  hold:Auto");
 }
 
 void loop()
 {
+    // ------ KEY1: 总开关 ------
     if (isPress(SW1_PIN, sw1)) {
-        led_toggle();
-        Serial.println(digitalRead(LED_PIN) ? "LED ON" : "LED OFF");
+        if (powerOn) power_off(); else power_on();
     }
 
-    if (isPress(SW2_PIN, sw2)) {
-        fan_toggle();
-        Serial.println(digitalRead(FAN_PIN) ? "FAN ON" : "FAN OFF");
+    // ------ KEY2: 短按切模式 / 长按切换自动/手动 ------
+    int ev = key2Event();
+    if (powerOn && ev == 1) {
+        if (autoMode) {
+            Serial.println("In AUTO mode, short press disabled");
+        } else {
+            set_mode(mode % 4 + 1);
+        }
+    }
+
+    if (powerOn && ev == 2) {
+        toggle_auto();
     }
 }
