@@ -2,14 +2,14 @@
 #define _VERSION_H_
 
 
-#define VERSION "V3.4"
+#define VERSION "V3.5"
 
 #define DEVICE_ID "PCT_100_005"
 
 
 #define PROJECT_NAME "PCT_100_CTL"
 #define PROJECT_AUTHOR "md"
-#define PROJECT_DATE "2026-05-27"
+#define PROJECT_DATE "2026-06-01"
 
 
 #endif

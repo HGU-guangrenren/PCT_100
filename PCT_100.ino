@@ -1,4 +1,5 @@
 #include "led.h"
+#include "adc.h"
 #include "version.h"
 
 // ------ 软件消抖（通用短按）------
@@ -150,6 +151,7 @@ void setup()
     fan_off();
     digitalWrite(6, LOW);
 
+    adc_init();
     Serial.println("System initialized!");
     Serial.println("KEY1=Power  KEY2=short:Mode  hold:Auto");
 }
@@ -178,5 +180,15 @@ void loop()
 
     if (powerOn && ev == 2) {
         toggle_auto();
+    }
+
+    if (powerOn && autoMode) {
+        float voltage = adc_read_voltage();
+        if (voltage > 2.0) {
+            led_on();
+        } else {
+            led_off();
+        }
+        delay(1000);
     }
 }
