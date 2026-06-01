@@ -1,80 +1,20 @@
+#include "exti.h"
 #include "led.h"
 #include "adc.h"
+#include "ds18b20.h"
 #include "version.h"
 
-// ------ 软件消抖（通用短按）------
-struct Debounce {
-    int idle, st, lr;
-    unsigned long tc;
-    bool ready;
-};
-
-static bool isPress(int pin, Debounce &d) {
-    int r = digitalRead(pin);
-    if (!d.ready) {
-        d.idle = r; d.st = r; d.lr = r; d.ready = true;
-        return false;
-    }
-    if (r != d.lr) { d.lr = r; d.tc = millis(); }
-    if (millis() - d.tc >= 50 && d.lr != d.st) {
-        if (d.st == d.idle && d.lr != d.idle) {
-            d.st = d.lr;
-            return true;
-        }
-        d.st = d.lr;
-    }
-    return false;
-}
-
-// ------ KEY2 事件：0=无, 1=短按, 2=长按(2s) ------
-static int key2Event(void) {
-    static int idle = -1, st, lr;
-    static unsigned long tc, pressTime;
-    static bool ready = false, longTriggered = false;
-    static unsigned long bootTime;
-
-    int r = digitalRead(SW2_PIN);
-    if (!ready) {
-        idle = r; st = r; lr = r; bootTime = millis(); ready = true;
-        return 0;
-    }
-
-    unsigned long now = millis();
-    if (r != lr) { lr = r; tc = now; }
-
-    // 开机500ms内引脚稳定时同步idle，避免噪声导致误判
-    if (lr == st && now - tc > 100 && millis() - bootTime < 500) {
-        idle = st;
-    }
-
-    if (now - tc >= 50 && lr != st) {
-        if (st == idle && lr != idle) {
-            st = lr;
-            pressTime = now;
-            longTriggered = false;
-        } else {
-            st = lr;
-            if (!longTriggered && now - pressTime < 2000) {
-                return 1;
-            }
-        }
-    }
-
-    if (lr != idle && !longTriggered && now - pressTime >= 2000) {
-        longTriggered = true;
-        return 2;
-    }
-
-    return 0;
-}
-
-static Debounce sw1;
 static bool powerOn = false;
 static int mode = 0;
-static bool autoMode = false;
+static bool autoMode = true;
 static int lastManualMode = 4;
 
-// ------ Control API (called from MQTT) ------
+static unsigned long key2_down_time = 0;
+static bool key2_holding = false;
+
+#define LONG_PRESS_MIN   1000
+#define LONG_PRESS_MAX   2000
+
 void power_on(void)
 {
     powerOn = true;
@@ -88,9 +28,10 @@ void power_off(void)
 {
     powerOn = false;
     mode = 0;
+    autoMode = true;
     led_off();
     fan_off();
-    Serial.println("POWER OFF");
+    Serial.println("POWER OFF - Reset to AUTO mode");
 }
 
 void set_mode(int m)
@@ -136,6 +77,8 @@ void setup()
     Serial.begin(115200);
     pinMode(6, OUTPUT);
     digitalWrite(6, HIGH);
+    pinMode(8, OUTPUT);
+    digitalWrite(8, LOW);
 
     for (int i = 0; i < 5; i++) {
         delay(500);
@@ -144,7 +87,7 @@ void setup()
     Serial.println("");
     Serial.println("--- SYSTEM STARTED ---");
 
-    switch_init();
+    exti_init();
     led_init();
     fan_init();
     led_off();
@@ -152,43 +95,80 @@ void setup()
     digitalWrite(6, LOW);
 
     adc_init();
+    ds18b20_init();
     Serial.println("System initialized!");
-    Serial.println("KEY1=Power  KEY2=short:Mode  hold:Auto");
+    Serial.println("KEY1=Power  KEY2=short:Mode  hold:Auto  Default:AUTO");
 }
 
 void loop()
 {
-    // ------ KEY1: 自锁开关，直接读物理状态 ------
-    {
-        static int last = HIGH;
-        int cur = digitalRead(SW1_PIN);
-        if (cur != last) {
-            last = cur;
-            if (cur == HIGH) power_on(); else power_off();
-        }
-    }
+    exti_update();
 
-    // ------ KEY2: 短按切模式 / 长按切换自动/手动 ------
-    int ev = key2Event();
-    if (powerOn && ev == 1) {
-        if (autoMode) {
-            Serial.println("In AUTO mode, short press disabled");
+    // ------ KEY1: 自锁开关 ------
+    if (key1_edge) {
+        key1_edge = 0;
+        if (key1_is_on()) {
+            power_on();
         } else {
-            set_mode(mode % 4 + 1);
+            power_off();
         }
     }
 
-    if (powerOn && ev == 2) {
-        toggle_auto();
+    if (!powerOn) {
+        key2_holding = false;
+        return;
     }
 
-    if (powerOn && autoMode) {
+    unsigned long now = millis();
+
+    // ------ KEY2 按下：记录时间 ------
+    if (key2_edge) {
+        key2_edge = 0;
+        key2_down_time = now;
+        key2_holding = true;
+    }
+
+    // ------ KEY2 长按检测：切换自动/手动 ------
+    if (key2_holding) {
+        unsigned long hold = now - key2_down_time;
+        if (hold >= LONG_PRESS_MIN && hold <= LONG_PRESS_MAX) {
+            toggle_auto();
+            key2_holding = false;
+        }
+    }
+
+    // ------ KEY2 松手检测：短按（仅手动模式）------
+    static bool last_key2 = false;
+    bool now_key2 = (digitalRead(KEY2_PIN) == HIGH);
+    if (last_key2 && !now_key2 && key2_holding) {
+        unsigned long hold = now - key2_down_time;
+        if (hold < LONG_PRESS_MIN) {
+            if (!autoMode) {
+                set_mode(mode % 4 + 1);
+            } else {
+                Serial.println("In AUTO mode, short press disabled");
+            }
+        }
+        key2_holding = false;
+    }
+    last_key2 = now_key2;
+
+    // ------ 自动模式：ADC + 温度控制 ------
+    if (autoMode) {
         float voltage = adc_read_voltage();
         if (voltage > 2.0) {
             led_on();
         } else {
             led_off();
         }
+
+        float temp = ds18b20_read_temp();
+        if (temp > 30.0) {
+            fan_on();
+        } else {
+            fan_off();
+        }
+
         delay(1000);
     }
 }

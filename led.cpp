@@ -42,18 +42,3 @@ void fan_toggle(void)
     digitalWrite(FAN_PIN, !digitalRead(FAN_PIN));
 }
 
-void switch_init(void)
-{
-    pinMode(SW1_PIN, INPUT);
-    pinMode(SW2_PIN, INPUT);
-}
-
-bool read_sw1(void)
-{
-    return digitalRead(SW1_PIN) == LOW;
-}
-
-bool read_sw2(void)
-{
-    return digitalRead(SW2_PIN) == LOW;
-}
