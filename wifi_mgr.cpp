@@ -457,3 +457,43 @@ void wifi_mgr_force_rescan(void)
         start_scan();
     }
 }
+
+void wifi_mgr_reconnect_saved(void)
+{
+    if (s_state == WFS_CONNECTING) {
+        Serial.println("[WiFi] KEY1 ON: 正在连接中, 跳过重连");
+        return;
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.printf("[WiFi] KEY1 ON: 已连接 SSID=%s, 无需重连\r\n",
+                      WiFi.SSID().c_str());
+        return;
+    }
+
+    Serial.println("[WiFi] KEY1 ON: 重新触发连接...");
+    WiFi.disconnect();
+    delay(50);
+
+#if WIFI_MODE == WIFI_MODE_SAVED
+    String ssid, pass;
+    load_from_flash(ssid, pass);
+    if (ssid.length() > 0) {
+        Serial.printf("[WiFi] KEY1 ON: 使用保存账号 SSID=%s\r\n", ssid.c_str());
+        s_should_save = true;
+        start_connect(ssid, pass);
+    } else {
+        Serial.println("[WiFi] KEY1 ON: Flash 无保存, 进入扫描");
+        s_should_save = true;
+        start_scan();
+    }
+#elif WIFI_MODE == WIFI_MODE_STATIC
+    Serial.printf("[WiFi] KEY1 ON: 使用静态账号 SSID=%s\r\n", WIFI_SSID);
+    s_should_save = true;
+    start_connect(String(WIFI_SSID), String(WIFI_PASSWORD));
+#else
+    Serial.println("[WiFi] KEY1 ON: 重新扫描");
+    s_should_save = false;
+    start_scan();
+#endif
+}

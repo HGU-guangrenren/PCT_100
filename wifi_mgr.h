@@ -49,5 +49,6 @@ bool           wifi_mgr_is_provisioning(void); // 是否处于配网等待输入
 // 控制接口
 void wifi_mgr_clear_saved(void);   // 清除 Flash 中保存的账号密码
 void wifi_mgr_force_rescan(void);  // 强制重新扫描
+void wifi_mgr_reconnect_saved(void); // 读 Flash 并重连 (供 KEY1 ON 调用)
 
 #endif
