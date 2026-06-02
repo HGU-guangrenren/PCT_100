@@ -3,19 +3,21 @@
 
 static Adafruit_NeoPixel strip(RGB_LED_COUNT, RGB_LED_PIN,
                                 NEO_GRB + NEO_KHZ800);
-static rgb_mode_t    cur_mode    = RGB_MODE_BOOT;
-static bool          test_mode   = false;
-static unsigned long boot_start  = 0;
-static unsigned long anim_ms     = 0;
+static rgb_mode_t    cur_mode           = RGB_MODE_BOOT;
+static bool          test_mode          = false;
+static unsigned long boot_start         = 0;
+static unsigned long boot_success_start = 0;
+static unsigned long anim_ms            = 0;
 
 static const uint32_t BOOT_PALETTE[] = {
     0xFF0000, 0xFF7F00, 0xFFFF00, 0x00FF00,
     0x00FFFF, 0x0000FF, 0x8B00FF, 0xFFFFFF
 };
 #define BOOT_PALETTE_SIZE  8
-#define BOOT_STEP_MS       250
-#define BOOT_ROUNDS        2
+#define BOOT_STEP_MS       100
+#define BOOT_ROUNDS        3
 #define BOOT_TOTAL_MS      (BOOT_PALETTE_SIZE * BOOT_STEP_MS * BOOT_ROUNDS)
+#define BOOT_SUCCESS_MS    1500
 
 void rgb_led_init(void)
 {
@@ -56,6 +58,16 @@ void rgb_led_exit_test_mode(void)
     strip.show();
 }
 
+void rgb_led_trigger_boot_success(void)
+{
+    if (test_mode) return;
+    cur_mode = RGB_MODE_BOOT_SUCCESS;
+    boot_success_start = millis();
+    anim_ms = millis();
+    strip.clear();
+    strip.show();
+}
+
 void rgb_led_update(void)
 {
     if (test_mode) return;
@@ -75,9 +87,22 @@ void rgb_led_update(void)
             }
             break;
         }
+        case RGB_MODE_BOOT_SUCCESS: {
+            unsigned long elapsed = now - boot_success_start;
+            if (elapsed >= BOOT_SUCCESS_MS) {
+                rgb_led_set_mode(RGB_MODE_WIFI_DISC);
+            } else {
+                uint32_t phase = ((uint32_t)(elapsed % 500UL) * 65535UL) / 500UL;
+                strip.setPixelColor(0, strip.ColorHSV((uint16_t)phase, 255, 200));
+                strip.show();
+            }
+            break;
+        }
         case RGB_MODE_WIFI_OK: {
-            uint32_t phase = ((uint32_t)(now % 5000UL) * 65535UL) / 5000UL;
-            strip.setPixelColor(0, strip.ColorHSV((uint16_t)phase, 255, 128));
+            uint16_t phase = (uint16_t)(((uint32_t)(now % 3000UL) * 65535UL) / 3000UL);
+            uint16_t tri = (phase < 32768) ? phase : (uint16_t)(65535 - phase);
+            uint8_t  val = 13 + (uint8_t)((uint32_t)tri * 64UL / 32767UL);
+            strip.setPixelColor(0, strip.ColorHSV(21845, 255, val));
             strip.show();
             break;
         }

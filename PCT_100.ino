@@ -24,6 +24,7 @@ void power_on(void)
     mode = 4;
     led_off();
     fan_off();
+    rgb_led_trigger_boot_success();
     Serial.println("POWER ON");
 }
 
