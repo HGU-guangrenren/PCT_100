@@ -2,7 +2,9 @@
 #include "led.h"
 #include "adc.h"
 #include "ds18b20.h"
+#include "oled.h"
 #include "version.h"
+#include "wifi_mgr.h"
 
 static bool powerOn = false;
 static int mode = 0;
@@ -96,13 +98,18 @@ void setup()
 
     adc_init();
     ds18b20_init();
+    oled_init();
     Serial.println("System initialized!");
     Serial.println("KEY1=Power  KEY2=short:Mode  hold:Auto  Default:AUTO");
+
+    wifi_mgr_init();
 }
 
 void loop()
 {
     exti_update();
+    oled_update();
+    wifi_mgr_update();
 
     // ------ KEY1: 自锁开关 ------
     if (key1_edge) {
@@ -155,20 +162,19 @@ void loop()
 
     // ------ 自动模式：ADC + 温度控制 ------
     if (autoMode) {
-        float voltage = adc_read_voltage();
-        if (voltage > 2.0) {
+        oled_read_sensors();
+        if (oled_get_voltage() > 2.0f) {
             led_on();
         } else {
             led_off();
         }
 
-        float temp = ds18b20_read_temp();
-        if (temp > 30.0) {
+        if (oled_get_temp() > TEMP_THRESHOLD) {
             fan_on();
         } else {
             fan_off();
         }
 
-        delay(1000);
+        delay(50);
     }
 }
