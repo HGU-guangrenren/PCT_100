@@ -19,4 +19,9 @@ float adc_read_voltage(void)
     return voltage;
 }
 
+int adc_read_raw(void)
+{
+    return analogRead(ADC_PIN);
+}
+
 

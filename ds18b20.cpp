@@ -3,9 +3,15 @@
 static OneWire oneWire(DS18B20_PIN);
 static DallasTemperature sensors(&oneWire);
 
+static float         last_valid_temp    = 0.0f;
+static bool          conversion_pending = false;
+static unsigned long conversion_start   = 0;
+static const unsigned long CONVERSION_TIME_MS = 750;
+
 void ds18b20_init(void)
 {
     pinMode(DS18B20_PIN, INPUT_PULLUP);
+    sensors.setWaitForConversion(false);
     sensors.begin();
 
     Serial.print("DS18B20 设备数: ");
@@ -24,14 +30,26 @@ void ds18b20_init(void)
     }
 }
 
+void ds18b20_update(void)
+{
+    if (conversion_pending) {
+        if (millis() - conversion_start >= CONVERSION_TIME_MS) {
+            last_valid_temp = sensors.getTempCByIndex(0);
+
+            Serial.print("DS18B20 温度: ");
+            Serial.print(last_valid_temp);
+            Serial.println(" °C");
+
+            conversion_pending = false;
+        }
+    } else {
+        sensors.requestTemperatures();
+        conversion_start   = millis();
+        conversion_pending = true;
+    }
+}
+
 float ds18b20_read_temp(void)
 {
-    sensors.requestTemperatures();
-    float temp = sensors.getTempCByIndex(0);
-
-    Serial.print("DS18B20 温度: ");
-    Serial.print(temp);
-    Serial.println(" °C");
-
-    return temp;
+    return last_valid_temp;
 }

@@ -7,5 +7,6 @@
 
 void adc_init(void);
 float adc_read_voltage(void);
+int   adc_read_raw(void);
 
 #endif

@@ -21,6 +21,11 @@ void led_toggle(void)
     digitalWrite(LED_PIN, !digitalRead(LED_PIN));
 }
 
+bool led_state(void)
+{
+    return digitalRead(LED_PIN) == LED_ON;
+}
+
 void fan_init(void)
 {
     pinMode(FAN_PIN, OUTPUT);
@@ -40,5 +45,10 @@ void fan_off(void)
 void fan_toggle(void)
 {
     digitalWrite(FAN_PIN, !digitalRead(FAN_PIN));
+}
+
+bool fan_state(void)
+{
+    return digitalRead(FAN_PIN) == FAN_ON;
 }
 

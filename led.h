@@ -15,11 +15,13 @@ void led_init(void);
 void led_on(void);
 void led_off(void);
 void led_toggle(void);
+bool led_state(void);
 
 void fan_init(void);
 void fan_on(void);
 void fan_off(void);
 void fan_toggle(void);
+bool fan_state(void);
 
 
 
