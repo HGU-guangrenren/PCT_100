@@ -12,6 +12,7 @@
   - 1 路 ADC (光敏电阻, 自动感光)
   - 1 路 DS18B20 温度采集 (TEMP_THRESHOLD=30°C 触发风扇)
   - 0.96 寸 SH1106 OLED 显示 (SDA=4, SCL=5)
+  - 1 路 WS2812 RGB 万色灯 (GPIO0): 开机彩虹 / WiFi 状态指示 / 串口测试
   - 2 个按键:
       KEY1 (GPIO20) 自锁开关, 直读物理状态 -> 总闸
       KEY2 (GPIO21) 短按切模式 (手动), 长按 1~2s 切自动/手动
@@ -146,4 +147,10 @@ V4.1   20260602  新增 WiFi 配网模块 (wifi_mgr.h / wifi_mgr.cpp):
                   串口命令: SCAN/STATUS/DISCONNECT/RECONNECT/RESET/HELP
                   DISCONNECT 断开当前连接, RECONNECT 重新连接
                   Flash 用 Preferences.h 存于 NVS 命名空间 "pct100"
+V4.2   20260602  新增 WS2812 RGB 万色灯模块 (rgb_led.h / rgb_led.cpp):
+                  - 开机 4 秒 7 色循环闪烁提示
+                  - WiFi 已连: HSV 色相平滑呼吸 (5 秒/轮)
+                  - WiFi 未连: 红色慢呼吸 (3 秒/轮, 5%~30% 亮度)
+                  - 串口命令: RGB R G B / RGB #RRGGBB / LED OFF
+                  - GPIO0 启动前 delay(100) 避开 strapping 窗口
 ================================================================================

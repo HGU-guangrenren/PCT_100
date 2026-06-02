@@ -5,6 +5,7 @@
 #include "oled.h"
 #include "version.h"
 #include "wifi_mgr.h"
+#include "rgb_led.h"
 
 static bool powerOn = false;
 static int mode = 0;
@@ -102,6 +103,8 @@ void setup()
     Serial.println("System initialized!");
     Serial.println("KEY1=Power  KEY2=short:Mode  hold:Auto  Default:AUTO");
 
+    delay(100);
+    rgb_led_init();
     wifi_mgr_init();
 }
 
@@ -110,6 +113,16 @@ void loop()
     exti_update();
     oled_update();
     wifi_mgr_update();
+    rgb_led_update();
+    rgb_led_console();
+
+    static rgb_mode_t last_rgb = RGB_MODE_BOOT;
+    bool conn = wifi_mgr_is_connected();
+    rgb_mode_t target = conn ? RGB_MODE_WIFI_OK : RGB_MODE_WIFI_DISC;
+    if (target != last_rgb) {
+        rgb_led_set_mode(target);
+        last_rgb = target;
+    }
 
     // ------ KEY1: 自锁开关 ------
     if (key1_edge) {
