@@ -29,6 +29,9 @@
 // 慢心跳兜底上报周期 (60s)
 #define MQTT_HEARTBEAT_MS     60000UL
 
+// 连接失败后最小重试间隔 (避免端口 RST 场景下日志刷屏)
+#define MQTT_RETRY_INTERVAL_MS  5000UL
+
 // LWT payload
 #define MQTT_LWT_OFFLINE      "{\"online\":false}"
 #define MQTT_LWT_ONLINE       "{\"online\":true}"
