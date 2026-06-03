@@ -6,6 +6,8 @@
 #include "console.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 // 来自 PCT_100.ino 的全局状态/控制接口
 extern bool get_power_on(void);
@@ -25,6 +27,9 @@ static unsigned long   s_last_publish = 0;
 static unsigned long   s_last_connect_attempt = 0;
 static bool            s_initialized  = false;
 static bool            s_was_wifi_connected = false;
+
+// FreeRTOS 互斥锁 (保护 s_mqtt, s_ip/s_port/...)
+static SemaphoreHandle_t s_mqtt_mutex = NULL;
 
 // ============================================================================
 // 配置变量 (运行期可变, NVS 持久化)
@@ -260,6 +265,7 @@ static void reset_retry_timer(void)
 // ============================================================================
 void mqtt_mgr_init(void)
 {
+    s_mqtt_mutex = xSemaphoreCreateMutex();
     load_mqtt_config();
     build_topics();
     s_mqtt.setServer(s_ip, s_port);
@@ -316,6 +322,31 @@ void mqtt_mgr_update(void)
     }
 }
 
+// ============================================================================
+// FreeRTOS 任务入口 (优先级 0, 配套 loopTask 优先级 1)
+//   阻塞在 try_connect() 时不影响 KEY/OLED/RGB
+// ============================================================================
+void mqtt_task(void *param)
+{
+    (void)param;
+    for (;;) {
+        mqtt_mgr_lock();
+        mqtt_mgr_update();
+        mqtt_mgr_unlock();
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
+void mqtt_mgr_lock(void)
+{
+    if (s_mqtt_mutex) xSemaphoreTake(s_mqtt_mutex, portMAX_DELAY);
+}
+
+void mqtt_mgr_unlock(void)
+{
+    if (s_mqtt_mutex) xSemaphoreGive(s_mqtt_mutex);
+}
+
 bool mqtt_mgr_is_connected(void)
 {
     return s_initialized && s_mqtt.connected();
@@ -326,8 +357,10 @@ bool mqtt_mgr_is_connected(void)
 // ============================================================================
 void mqtt_mgr_set_ip(const char* ip)
 {
+    mqtt_mgr_lock();
     if (!ip || strlen(ip) == 0) {
         Serial.println("[MQTT] IP 为空, 拒绝");
+        mqtt_mgr_unlock();
         return;
     }
     strncpy(s_ip, ip, sizeof(s_ip) - 1);
@@ -337,12 +370,15 @@ void mqtt_mgr_set_ip(const char* ip)
     s_mqtt.setServer(s_ip, s_port);
     if (s_mqtt.connected()) s_mqtt.disconnect();
     reset_retry_timer();
+    mqtt_mgr_unlock();
 }
 
 void mqtt_mgr_set_port(uint16_t port)
 {
+    mqtt_mgr_lock();
     if (port == 0) {
         Serial.println("[MQTT] PORT=0 非法, 拒绝");
+        mqtt_mgr_unlock();
         return;
     }
     s_port = port;
@@ -351,12 +387,15 @@ void mqtt_mgr_set_port(uint16_t port)
     s_mqtt.setServer(s_ip, s_port);
     if (s_mqtt.connected()) s_mqtt.disconnect();
     reset_retry_timer();
+    mqtt_mgr_unlock();
 }
 
 void mqtt_mgr_set_user(const char* user)
 {
+    mqtt_mgr_lock();
     if (!user || strlen(user) == 0) {
         Serial.println("[MQTT] USER 为空, 拒绝");
+        mqtt_mgr_unlock();
         return;
     }
     strncpy(s_user, user, sizeof(s_user) - 1);
@@ -365,12 +404,15 @@ void mqtt_mgr_set_user(const char* user)
     Serial.printf("[MQTT] USER -> %s\n", s_user);
     if (s_mqtt.connected()) s_mqtt.disconnect();
     reset_retry_timer();
+    mqtt_mgr_unlock();
 }
 
 void mqtt_mgr_set_pass(const char* pass)
 {
+    mqtt_mgr_lock();
     if (!pass) {
         Serial.println("[MQTT] PASS 为空, 拒绝");
+        mqtt_mgr_unlock();
         return;
     }
     strncpy(s_pass, pass, sizeof(s_pass) - 1);
@@ -379,16 +421,20 @@ void mqtt_mgr_set_pass(const char* pass)
     Serial.printf("[MQTT] PASS -> %s (已保存)\n", s_pass);
     if (s_mqtt.connected()) s_mqtt.disconnect();
     reset_retry_timer();
+    mqtt_mgr_unlock();
 }
 
 void mqtt_mgr_set_device_id(const char* id)
 {
+    mqtt_mgr_lock();
     if (!id || strlen(id) == 0) {
         Serial.println("[MQTT] ID 为空, 拒绝");
+        mqtt_mgr_unlock();
         return;
     }
     if (strlen(id) >= MQTT_ID_LEN) {
         Serial.printf("[MQTT] ID 过长 (>=%d), 拒绝\n", MQTT_ID_LEN);
+        mqtt_mgr_unlock();
         return;
     }
     strncpy(s_device_id, id, sizeof(s_device_id) - 1);
@@ -398,10 +444,12 @@ void mqtt_mgr_set_device_id(const char* id)
     build_topics();
     if (s_mqtt.connected()) s_mqtt.disconnect();
     reset_retry_timer();
+    mqtt_mgr_unlock();
 }
 
 void mqtt_mgr_clear_config(void)
 {
+    mqtt_mgr_lock();
     strncpy(s_ip, MQTT_IP_DEFAULT, sizeof(s_ip) - 1);
     s_ip[sizeof(s_ip) - 1] = '\0';
     s_port = MQTT_PORT_DEFAULT;
@@ -417,14 +465,17 @@ void mqtt_mgr_clear_config(void)
     build_topics();
     if (s_mqtt.connected()) s_mqtt.disconnect();
     reset_retry_timer();
+    mqtt_mgr_unlock();
 }
 
 void mqtt_mgr_reconnect(void)
 {
+    mqtt_mgr_lock();
     Serial.println("[MQTT] 强制重连");
     s_mqtt.setServer(s_ip, s_port);
     if (s_mqtt.connected()) s_mqtt.disconnect();
     reset_retry_timer();
+    mqtt_mgr_unlock();
 }
 
 // ============================================================================

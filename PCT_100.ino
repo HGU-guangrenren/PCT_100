@@ -8,6 +8,7 @@
 #include "rgb_led.h"
 #include "mqtt_mgr.h"
 #include "console.h"
+#include <freertos/FreeRTOS.h>
 
 static bool powerOn = false;
 static int mode = 0;
@@ -111,6 +112,7 @@ void setup()
     rgb_led_init();
     wifi_mgr_init();
     mqtt_mgr_init();
+    xTaskCreatePinnedToCore(mqtt_task, "mqtt", 4096, NULL, 0, NULL, 0);
 }
 
 void loop()
@@ -125,7 +127,7 @@ void loop()
     wifi_mgr_console();
 
     wifi_mgr_update();
-    mqtt_mgr_update();
+    // mqtt_mgr_update() 已迁入独立任务 mqtt_task (优先级 0) 每 50ms 执行一次
 
     {   // RGB 状态选择 (按优先级)
         rgb_mode_t cur = rgb_led_get_mode();
