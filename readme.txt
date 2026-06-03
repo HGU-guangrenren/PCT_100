@@ -179,12 +179,15 @@
    MQTT SET PORT <port>     例: MQTT SET PORT 8081
    MQTT SET USER <user>     例: MQTT SET USER your_username
    MQTT SET PASS <pass>     例: MQTT SET PASS your_password
-   MQTT SET ID <id>         例: MQTT SET ID PCT_100_005
-   MQTT CLEAR               恢复 5 项出厂默认 + 写 NVS + 自动重连
-   MQTT RECONNECT           强制 disconnect, 下次 update 自动重连
-   -------------------------------------------------------------------------
-   每条 SET 立即生效: 写变量 + 写 NVS + 自动 disconnect
-                     下次 loop 的 mqtt_mgr_update() 用新值重连
+    MQTT SET ID <id>         例: MQTT SET ID PCT_100_005
+    MQTT SET LIGHT_TH <lux>  例: MQTT SET LIGHT_TH 150   (V5.3)
+    MQTT SET TEMP_TH  <°C>   例: MQTT SET TEMP_TH 30.0   (V5.3)
+    MQTT CLEAR               恢复 5 项出厂默认 + 写 NVS + 自动重连
+    MQTT RECONNECT           强制 disconnect, 下次 update 自动重连
+    -------------------------------------------------------------------------
+    每条 SET 立即生效: 写变量 + 写 NVS + 自动 disconnect
+                      下次 loop 的 mqtt_mgr_update() 用新值重连
+    LIGHT_TH / TEMP_TH 的串口效果等同于 MQTT 远程 set_threshold 命令
 
 5) NVS 存储 (Preferences.h, 命名空间 pct100)
    -------------------------------------------------------------------------
@@ -410,4 +413,5 @@ V5.3   20260603  修复灯不按阈值开关 (核心 bug):
                   改为 lux < g_light_threshold, 真正用阈值控制
                   MQTT SET LIGHT_TH/TEMP_TH 串口命令
                   g_light_threshold 默认值 300 -> 150 (新用户默认)
+                  readme 补充 LIGHT_TH/TEMP_TH 命令说明
 ================================================================================
