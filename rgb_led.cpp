@@ -59,7 +59,7 @@ void rgb_led_test_color(uint8_t r, uint8_t g, uint8_t b)
 void rgb_led_exit_test_mode(void)
 {
     test_mode = false;
-    cur_mode  = RGB_MODE_WIFI_DISC;
+    cur_mode  = RGB_MODE_OFF;
     strip.clear();
     strip.show();
 }
@@ -82,10 +82,11 @@ void rgb_led_update(void)
     anim_ms = now;
 
     switch (cur_mode) {
+        // === 开机/庆祝 (保留原行为, 仅改结束后跳转目标) ===
         case RGB_MODE_BOOT: {
             unsigned long elapsed = now - boot_start;
             if (elapsed >= BOOT_TOTAL_MS) {
-                rgb_led_set_mode(RGB_MODE_WIFI_DISC);
+                rgb_led_set_mode(RGB_MODE_OFF);
             } else {
                 uint8_t idx = (elapsed / BOOT_STEP_MS) % BOOT_PALETTE_SIZE;
                 strip.setPixelColor(0, BOOT_PALETTE[idx]);
@@ -96,7 +97,7 @@ void rgb_led_update(void)
         case RGB_MODE_BOOT_SUCCESS: {
             unsigned long elapsed = now - boot_success_start;
             if (elapsed >= BOOT_SUCCESS_MS) {
-                rgb_led_set_mode(RGB_MODE_WIFI_DISC);
+                rgb_led_set_mode(RGB_MODE_OFF);
             } else {
                 uint32_t phase = ((uint32_t)(elapsed % 500UL) * 65535UL) / 500UL;
                 strip.setPixelColor(0, strip.ColorHSV((uint16_t)phase, 255, 200));
@@ -104,22 +105,120 @@ void rgb_led_update(void)
             }
             break;
         }
-        case RGB_MODE_WIFI_OK: {
-            uint16_t phase = (uint16_t)(((uint32_t)(now % 3000UL) * 65535UL) / 3000UL);
-            uint16_t tri = (phase < 32768) ? phase : (uint16_t)(65535 - phase);
-            uint8_t  val = 13 + (uint8_t)((uint32_t)tri * 64UL / 32767UL);
-            strip.setPixelColor(0, strip.ColorHSV(21845, 255, val));
+
+        // === #1 严重警报 (LED+Fan) - 红红绿绿蓝蓝, 1200ms ===
+        case RGB_MODE_ALARM_SEVERE: {
+            unsigned long e = (now - anim_ms) % 1200UL;
+            if      (e < 100)  strip.setPixelColor(0, strip.Color(255, 0, 0));
+            else if (e < 150)  strip.clear();
+            else if (e < 250)  strip.setPixelColor(0, strip.Color(255, 0, 0));
+            else if (e < 300)  strip.clear();
+            else if (e < 400)  strip.setPixelColor(0, strip.Color(0, 255, 0));
+            else if (e < 450)  strip.clear();
+            else if (e < 550)  strip.setPixelColor(0, strip.Color(0, 255, 0));
+            else if (e < 600)  strip.clear();
+            else if (e < 700)  strip.setPixelColor(0, strip.Color(0, 0, 255));
+            else if (e < 750)  strip.clear();
+            else if (e < 850)  strip.setPixelColor(0, strip.Color(0, 0, 255));
+            else               strip.clear();
             strip.show();
             break;
         }
+
+        // === #2 光照越界 (仅LED) - 红300→绿300→蓝300, 1500ms ===
+        case RGB_MODE_ALARM_LIGHT: {
+            unsigned long e = (now - anim_ms) % 1500UL;
+            if      (e < 300)  strip.setPixelColor(0, strip.Color(255, 0, 0));
+            else if (e < 500)  strip.clear();
+            else if (e < 800)  strip.setPixelColor(0, strip.Color(0, 255, 0));
+            else if (e < 1000) strip.clear();
+            else if (e < 1300) strip.setPixelColor(0, strip.Color(0, 0, 255));
+            else               strip.clear();
+            strip.show();
+            break;
+        }
+
+        // === #3 温度越界 (仅风扇) - 红500→绿500→蓝500→灭700, 2200ms ===
+        case RGB_MODE_ALARM_TEMP: {
+            unsigned long e = (now - anim_ms) % 2200UL;
+            if      (e < 500)  strip.setPixelColor(0, strip.Color(255, 0, 0));
+            else if (e < 1000) strip.setPixelColor(0, strip.Color(0, 255, 0));
+            else if (e < 1500) strip.setPixelColor(0, strip.Color(0, 0, 255));
+            else               strip.clear();
+            strip.show();
+            break;
+        }
+
+        // === #5 WiFi 未连 - 红200→绿200→灭500, 900ms ===
         case RGB_MODE_WIFI_DISC: {
-            uint16_t phase = (uint16_t)(((uint32_t)(now % 3000UL) * 65535UL) / 3000UL);
-            uint16_t tri = (phase < 32768) ? phase : (uint16_t)(65535 - phase);
-            uint8_t  val = 13 + (uint8_t)((uint32_t)tri * 64UL / 32767UL);
-            strip.setPixelColor(0, strip.ColorHSV(0, 255, val));
+            unsigned long e = (now - anim_ms) % 900UL;
+            if      (e < 200)  strip.setPixelColor(0, strip.Color(255, 0, 0));
+            else if (e < 400)  strip.setPixelColor(0, strip.Color(0, 255, 0));
+            else               strip.clear();
             strip.show();
             break;
         }
+
+        // === #4 MQTT 未连 - HSV 渐变, 2000ms ===
+        case RGB_MODE_MQTT_DISC: {
+            unsigned long e = (now - anim_ms) % 2000UL;
+            // 0-500: Red(H=0) → Green(H=21845), V=255
+            if (e < 500) {
+                float t = (float)e / 500.0f;
+                uint16_t hue = (uint16_t)(t * 21845.0f);
+                strip.setPixelColor(0, strip.ColorHSV(hue, 255, 255));
+            // 500-1000: Green(H=21845) → Off, V:255→0
+            } else if (e < 1000) {
+                float t = (float)(e - 500) / 500.0f;
+                uint8_t val = (uint8_t)(255.0f * (1.0f - t));
+                strip.setPixelColor(0, strip.ColorHSV(21845, 255, val));
+            // 1000-1500: Off → Blue(H=43690), V:0→255
+            } else if (e < 1500) {
+                float t = (float)(e - 1000) / 500.0f;
+                uint8_t val = (uint8_t)(255.0f * t);
+                strip.setPixelColor(0, strip.ColorHSV(43690, 255, val));
+            // 1500-2000: Blue(H=43690) → Off, V:255→0
+            } else {
+                float t = (float)(e - 1500) / 500.0f;
+                uint8_t val = (uint8_t)(255.0f * (1.0f - t));
+                strip.setPixelColor(0, strip.ColorHSV(43690, 255, val));
+            }
+            strip.show();
+            break;
+        }
+
+        // === #6 全部正常 - HSV 渐变循环, 4200ms ===
+        case RGB_MODE_IDLE: {
+            unsigned long e = (now - anim_ms) % 4200UL;
+            // 0-1000: Off → Red, H=0, V:0→255
+            if (e < 1000) {
+                float t = (float)e / 1000.0f;
+                uint8_t val = (uint8_t)(255.0f * t);
+                strip.setPixelColor(0, strip.ColorHSV(0, 255, val));
+            // 1000-2000: Red→Green, H:0→21845, V=255
+            } else if (e < 2000) {
+                float t = (float)(e - 1000) / 1000.0f;
+                uint16_t hue = (uint16_t)(t * 21845.0f);
+                strip.setPixelColor(0, strip.ColorHSV(hue, 255, 255));
+            // 2000-3000: Green→Blue, H:21845→43690, V=255
+            } else if (e < 3000) {
+                float t = (float)(e - 2000) / 1000.0f;
+                uint16_t hue = 21845 + (uint16_t)(t * 21845.0f);
+                strip.setPixelColor(0, strip.ColorHSV(hue, 255, 255));
+            // 3000-4000: Blue→Off, H=43690, V:255→0
+            } else if (e < 4000) {
+                float t = (float)(e - 3000) / 1000.0f;
+                uint8_t val = (uint8_t)(255.0f * (1.0f - t));
+                strip.setPixelColor(0, strip.ColorHSV(43690, 255, val));
+            // 4000-4200: Off hold 200ms
+            } else {
+                strip.clear();
+            }
+            strip.show();
+            break;
+        }
+
+        // === OFF / TEST / default ===
         default:
             strip.clear();
             strip.show();
