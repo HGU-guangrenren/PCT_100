@@ -1,6 +1,6 @@
 ================================================================================
   PCT_100_CTL  项目说明
-  Version : V4.9   2026-06-02
+  Version : V5.2   2026-06-03
   Author  : md
 ================================================================================
 
@@ -191,23 +191,95 @@
    键名: mqtt_ip / mqtt_port / mqtt_user / mqtt_pass / mqtt_id
    缺失时用 mqtt_mgr.h 顶部 MQTT_*_DEFAULT 默认值
 
-6) MQTTX 使用 (PC 端工具, 免费)
+6) MQTTX 使用 (PC 端工具, 免费, 跨平台 Win/Mac/Linux)
    -------------------------------------------------------------------------
-   下载: https://mqttx.app/zh
-   新建连接参数:
-     Name      : 任意 (如 PCT_100_005)
-     Host      : your_broker_ip
-     Port      : 8081
-     Client ID : 不能用 PCT_100_005 (与设备冲突, broker 踢人)
-                 建议 mqttx_<你的名字>_<序号> (如 mqttx_lyg_001)
-     Username  : your_username
-     Password  : your_password
-     MQTT V    : 3.1.1
-     SSL/TLS   : 关闭
-     Keep Alive: 60
-   订阅 (New Subscription):
-     Topic : chemctrl/PCT_100_005/status   QoS 1   (不勾 Retain)
-     Topic : chemctrl/PCT_100_005/lwt      QoS 1   (勾选 Retain)
+   MQTTX 是 EMQX 公司出品的桌面 MQTT 客户端, 用来在 PC 上
+   观察板子上报的消息 / 主动下发命令 / 调试多设备, 排查 "上位机
+   显示设备未连接" 时也用它验证 broker 是否可达.
+
+   【1. 下载安装】
+      官网    : https://mqttx.app/zh
+      GitHub  : https://github.com/emqx/MQTTX/releases
+      选 mqttx-x.x.x-windows-x64.exe (Win) / .dmg (Mac) / .AppImage (Linux)
+
+   【2. 新建连接 (Create New Connection)】
+      顶部 [+] -> Connections -> 填:
+        Name        : 任意标识 (如 debug_PCT100_005)
+        Host        : your_broker_ip
+        Port        : 8081
+        Client ID   : 必须与设备不同, 建议 mqttx_<你名>_<序号>
+                      如 mqttx_lyg_001 (用设备 ID 会被 broker 踢)
+        Username    : your_username
+        Password    : your_password
+        MQTT Version: 3.1.1
+        SSL/TLS     : 关闭
+        Keep Alive  : 60
+        Auto Reconnect: 勾选
+        Clean Session: 勾选 (默认就是, 不用改)
+      点右上 [Connect] -> 左侧连接变绿 = 连上 broker
+
+   【3. 订阅 topic (看板子上报)】
+      顶部 [+] -> New Subscription, 逐条加:
+        Topic : chemctrl/PCT_100_005/status   QoS 1   Retain 不勾
+        Topic : chemctrl/PCT_100_005/lwt      QoS 1   Retain 勾上
+        Topic : chemctrl/+/status             QoS 1   Retain 不勾
+                (通配订阅所有设备, 用 + 匹配 device_id 一段)
+        Topic : chemctrl/+/lwt                QoS 1   Retain 勾上
+      点 [Subscribe] 后下方消息区会持续滚出设备主动 publish 的 JSON.
+      60 秒没新消息属于正常 (慢心跳兜底周期), 想立即看可手动发
+      get_status 命令 (见下).
+
+   【4. 看懂板子 status 消息 (10 字段 JSON)】
+      收到消息示例:
+        Topic  : chemctrl/PCT_100_005/status
+        Payload: {"temperature":25.3,"light":680,"mode":"auto",
+                  "key1_lock":true,"relay3":false,"relay4":true,
+                  "temp_threshold":40.0,"light_threshold":320}
+      字段含义同上方 "2) 上行 status 字段".
+
+   【5. 主动下发命令到板子 (模拟上位机)】
+      底部输入框:
+        Topic   : chemctrl/PCT_100_005/command
+        QoS     : 1
+        Retain  : 不勾
+      Payload 填 JSON (大括号, 双引号, 无 BOM):
+        {"cmd":"get_status"}                       立即拉一次完整 status
+        {"cmd":"set_relay","relay":3,"value":true}  灯亮
+        {"cmd":"set_relay","relay":4,"value":true}  风扇转
+        {"cmd":"set_relay","relay":3,"value":false} 灯灭
+        {"cmd":"set_mode","mode":"manual"}          切手动
+        {"cmd":"set_mode","mode":"auto"}            切自动
+        {"cmd":"set_threshold","temp":35.0,"light":250} 改阈值 (可只传一个)
+        {"cmd":"reboot"}                            远程重启
+      点右下发送 -> 串口应有对应打印 -> 几秒内 status 也会更新.
+
+   【6. 排查 "上位机显示设备未连接" 步骤】
+      (a) MQTTX 能否连上 broker?   连不上 -> PC 网络/防火墙问题
+      (b) 订阅 chemctrl/+/status  能否收到板子消息?
+          收不到 -> 板子端没连 broker (看 OLED 第四行 "云端:已连?")
+          收到   -> broker+板子都正常, 问题在上位机侧 (device_id 不匹配等)
+      (c) 主动 publish get_status 板子有无回包?  有 -> 双向通, 排查上位机.
+
+   【7. 多设备同时监控】
+      同一台 PC 可建多个连接, 每个连接用不同 Client ID:
+        debug_dev01 -> 订阅 chemctrl/PCT_100_001/+
+        debug_dev02 -> 订阅 chemctrl/PCT_100_002/+
+      或都用 Client ID A, 订阅 chemctrl/+/+ 一次看全.
+      调试完记得点 [Disconnect] 释放 broker 连接 (避免挤占设备资源).
+
+   【8. 常见问题】
+      Q: MQTTX 连不上 broker?
+      A: 1) 防火墙是否放行 8081 TCP 出站
+         2) PC 是否能 ping 通 your_broker_ip
+         3) Keep Alive 不填也行, 默认 60
+      Q: 订阅了但收不到 status?
+      A: 1) QoS 必须选 1 (板子上行用 qos1)
+         2) Topic 拼写错 (下划线 vs 斜杠, 区分大小写)
+         3) 看板子串口 [MQTT] 连接成功 打过没
+      Q: 发了命令板子没反应?
+      A: 1) JSON 格式错 (花括号, 逗号, 字符串双引号)
+         2) Topic 写到 chemctrl/PCT_100_005/status (反了, 应是 /command)
+         3) KEY1 OFF 时 set_relay 被静默忽略, 不算 bug
 
 7) ESP32-C3 烧录 + 实操流程
    -------------------------------------------------------------------------
@@ -324,4 +396,13 @@ V4.9   20260602  readme.txt 补充 MQTT 通信模块完整使用说明:
                     6) MQTTX (PC 端) 完整连接步骤
                     7) ESP32-C3 烧录 + 实操流程
                     8) 常见问题排查
+V5.2   20260603  readme.txt 扩充 MQTTX 使用说明为 8 小节:
+                  1) 下载安装 (官网 + GitHub releases)
+                  2) 新建连接 (10 项参数逐项说明)
+                  3) 订阅 topic (4 条常用订阅, 含 + 通配)
+                  4) 看懂 status 消息 (JSON 字段示例)
+                  5) 主动下发命令 (5 种 cmd payload 模板, 模拟上位机)
+                  6) 排查 "上位机显示设备未连接" 步骤
+                  7) 多设备同时监控
+                  8) 常见问题
 ================================================================================
