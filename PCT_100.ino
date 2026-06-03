@@ -18,7 +18,7 @@ static unsigned long key2_down_time = 0;
 static bool key2_holding = false;
 
 #define LONG_PRESS_MIN   1000
-#define LONG_PRESS_MAX   2000
+#define LONG_PRESS_MAX   2000   // (V5.1.1 起不再使用, 保留无副作用)
 
 void power_on(void)
 {
@@ -160,12 +160,12 @@ void loop()
         key2_holding = true;
     }
 
-    // ------ KEY2 长按检测：切换自动/手动 ------
-    if (key2_holding) {
-        unsigned long hold = now - key2_down_time;
-        if (hold >= LONG_PRESS_MIN && hold <= LONG_PRESS_MAX) {
+    // ------ KEY2 长按检测：切换自动/手动 (一次性触发, 不限上限) ------
+    static bool long_press_triggered = false;
+    if (key2_holding && !long_press_triggered) {
+        if (now - key2_down_time >= LONG_PRESS_MIN) {
             toggle_auto();
-            key2_holding = false;
+            long_press_triggered = true;
         }
     }
 
@@ -182,6 +182,7 @@ void loop()
             }
         }
         key2_holding = false;
+        long_press_triggered = false;
     }
     last_key2 = now_key2;
 
