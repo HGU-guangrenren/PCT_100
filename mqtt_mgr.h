@@ -48,12 +48,6 @@ void   mqtt_mgr_console(void);
 bool   mqtt_mgr_is_connected(void);
 void   mqtt_mgr_publish_status(void);
 
-// FreeRTOS 多任务 (mqtt_task 优先级 0, loopTask 优先级 1,
-//                  try_connect 阻塞时不影响 KEY/OLED/RGB)
-void   mqtt_task(void *param);
-void   mqtt_mgr_lock(void);
-void   mqtt_mgr_unlock(void);
-
 // 配置 setter (串口命令 / 远程调用)
 void   mqtt_mgr_set_ip(const char* ip);
 void   mqtt_mgr_set_port(uint16_t port);
