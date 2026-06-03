@@ -1,6 +1,6 @@
 ================================================================================
   PCT_100_CTL  项目说明
-  Version : V5.3   2026-06-03
+  Version : V6.0.1  2026-06-03
   Author  : md
 ================================================================================
 
@@ -399,6 +399,22 @@ V4.9   20260602  readme.txt 补充 MQTT 通信模块完整使用说明:
                     6) MQTTX (PC 端) 完整连接步骤
                     7) ESP32-C3 烧录 + 实操流程
                     8) 常见问题排查
+V5.0   20260603  修复 MQTT 连接失败时日志刷屏 (加重试间隔退避):
+                   - mqtt_mgr.h: 加 MQTT_RETRY_INTERVAL_MS = 5000UL
+                   - try_connect() 成功/失败均记录时间戳
+                   - mqtt_mgr_update() 在 !connected 分支按 5s 间隔重试
+                   - 端口 RST 场景 (PORT=9999): 每帧 50ms 刷屏 -> 每 5s 一次
+                   - 7 个 setter/clear/reconnect 调 reset_retry_timer()
+V5.1   20260603  wifi_mgr 接入 console 体系, 修复串口命令被 WiFi 抢:
+                   - 根因: V4.8 加 console 体系时漏改 wifi_mgr, poll_serial
+                     抢光 Serial 缓冲, mqtt_mgr_console 收不到用户命令
+                   - 删 poll_serial(), 新增 wifi_mgr_console() 用 console_take
+                   - loop() 顺序: console_pump + 3 个 console 放最前
+                   - 删无线残留的 s_line 静态变量
+V5.1.1 20260603  修复 KEY2 长按 >2 秒不切模式 (LONG_PRESS_MAX 太严):
+                   - 长按检测: 区间 [MIN, MAX] -> 一次性触发 (long_press_triggered)
+                   - 按住达到 1s 立即触发, 不限上限, 松手重置
+                   - LONG_PRESS_MAX 宏保留 (加注释说明已不使用)
 V5.2   20260603  readme.txt 扩充 MQTTX 使用说明为 8 小节:
                   1) 下载安装 (官网 + GitHub releases)
                   2) 新建连接 (10 项参数逐项说明)
@@ -413,5 +429,16 @@ V5.3   20260603  修复灯不按阈值开关 (核心 bug):
                   改为 lux < g_light_threshold, 真正用阈值控制
                   MQTT SET LIGHT_TH/TEMP_TH 串口命令
                   g_light_threshold 默认值 300 -> 150 (新用户默认)
-                  readme 补充 LIGHT_TH/TEMP_TH 命令说明
+                                     readme 补充 LIGHT_TH/TEMP_TH 命令说明
+V6.0   20260603  RGB 指示灯 6 种状态算法:
+                   新增 OFF / ALARM_SEVERE / ALARM_LIGHT / ALARM_TEMP
+                   / MQTT_DISC / IDLE 六种枚举
+                   优先级: 严重(灯+扇) > 光照 > 温度 > WiFi > MQTT > 正常
+                   #1 红红绿绿蓝蓝 1200ms / #2 红→绿→蓝 1500ms
+                   #3 红→绿→蓝→灭 2200ms / #5 红→绿→灭 900ms
+                   #4 MQTT未连 HSV渐变 2000ms / #6 全部正常 HSV渐变 4200ms
+V6.0.1 20260603  修复所有报警卡红色 bug:
+                   根因: rgb_led.cpp 遗留 anim_ms = now; 每帧重置动画时间
+                   所有新模式用 (now-anim_ms)%周期 计算位置, 结果恒 0
+                   全部卡在第一个颜色 (红色), 删该行即修复
 ================================================================================
