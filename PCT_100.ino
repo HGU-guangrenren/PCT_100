@@ -127,12 +127,29 @@ void loop()
     wifi_mgr_update();
     mqtt_mgr_update();
 
-    bool conn = wifi_mgr_is_connected();
-    rgb_mode_t target = conn ? RGB_MODE_WIFI_OK : RGB_MODE_WIFI_DISC;
-    rgb_mode_t cur = rgb_led_get_mode();
-    if (cur == RGB_MODE_WIFI_OK || cur == RGB_MODE_WIFI_DISC) {
-        if (cur != target) {
-            rgb_led_set_mode(target);
+    {   // RGB 状态选择 (按优先级)
+        rgb_mode_t cur = rgb_led_get_mode();
+
+        if (!powerOn) {
+            if (cur != RGB_MODE_OFF && cur != RGB_MODE_BOOT
+                && cur != RGB_MODE_BOOT_SUCCESS && cur != RGB_MODE_TEST) {
+                rgb_led_set_mode(RGB_MODE_OFF);
+            }
+        } else {
+            if (cur != RGB_MODE_BOOT && cur != RGB_MODE_BOOT_SUCCESS
+                && cur != RGB_MODE_TEST) {
+                bool light_on = led_state();
+                bool fan_on   = fan_state();
+                bool wifi_ok  = wifi_mgr_is_connected();
+                bool mqtt_ok  = mqtt_mgr_is_connected();
+
+                if      (light_on && fan_on)  rgb_led_set_mode(RGB_MODE_ALARM_SEVERE);
+                else if (light_on)             rgb_led_set_mode(RGB_MODE_ALARM_LIGHT);
+                else if (fan_on)               rgb_led_set_mode(RGB_MODE_ALARM_TEMP);
+                else if (!wifi_ok)             rgb_led_set_mode(RGB_MODE_WIFI_DISC);
+                else if (!mqtt_ok)             rgb_led_set_mode(RGB_MODE_MQTT_DISC);
+                else                           rgb_led_set_mode(RGB_MODE_IDLE);
+            }
         }
     }
 
