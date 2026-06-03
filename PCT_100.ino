@@ -186,10 +186,11 @@ void loop()
     }
     last_key2 = now_key2;
 
-    // ------ 自动模式：ADC + 温度控制 ------
+    // ------ 自动模式：光照 + 温度控制 ------
     if (autoMode) {
         oled_read_sensors();
-        if (oled_get_voltage() > 2.0f) {
+        int lux = oled_get_lux();
+        if (lux < g_light_threshold) {       // 暗 (lux 低于阈值) -> 开灯
             led_on();
         } else {
             led_off();
