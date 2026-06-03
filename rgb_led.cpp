@@ -1,4 +1,5 @@
 #include "rgb_led.h"
+#include "console.h"
 #include <Adafruit_NeoPixel.h>
 
 static Adafruit_NeoPixel strip(RGB_LED_COUNT, RGB_LED_PIN,
@@ -128,9 +129,7 @@ void rgb_led_update(void)
 
 void rgb_led_console(void)
 {
-    if (!Serial.available()) return;
-    String line = Serial.readStringUntil('\n');
-    line.trim();
+    String line = console_take();
     if (line.length() == 0) return;
 
     if (line.equalsIgnoreCase("LED OFF") || line.equalsIgnoreCase("LED AUTO")) {
@@ -164,5 +163,9 @@ void rgb_led_console(void)
         rgb_led_test_color(r, g, b);
         Serial.printf("[RGB] Test mode: R=%d G=%d B=%d  (#%02X%02X%02X)\n",
                       r, g, b, r, g, b);
+    }
+    else {
+        // 非本模块命令, 退回给下个 console
+        console_give_back(line);
     }
 }

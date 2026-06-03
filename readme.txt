@@ -1,6 +1,6 @@
 ================================================================================
   PCT_100_CTL  项目说明
-  Version : V4.6   2026-06-02
+  Version : V4.9   2026-06-02
   Author  : md
 ================================================================================
 
@@ -129,6 +129,123 @@
    void    wifi_mgr_force_rescan(void);    // 强制重新扫描
 
 ================================================================================
+四、MQTT 通信模块  (V4.7~V4.8 新增)
+--------------------------------------------------------------------------------
+新增文件: mqtt_mgr.h / mqtt_mgr.cpp / console.h / console.cpp
+库依赖  : PubSubClient.h, ArduinoJson.h (Arduino 库管理器安装)
+
+1) 通信协议 (固定, 来自上位机)
+   -------------------------------------------------------------------------
+   Broker       : 47.98.170.180:8081  (TCP, 非 SSL)
+   协议版本     : MQTT 3.1.1
+   用户名 / 密码: dzdx_emqx / Jp4!sQ7$
+   设备 ID      : 运行期变量, 默认 PCT_100_005 (version.h 中 DEVICE_ID_DEFAULT)
+   上行 topic   : chemctrl/{id}/status   (10 字段 JSON)
+   下行 topic   : chemctrl/{id}/command  (5 种 cmd)
+   LWT topic    : chemctrl/{id}/lwt      (retain, online true/false)
+
+2) 上行 status 字段 (10 项)
+   -------------------------------------------------------------------------
+   temperature      float   温度 (°C)
+   light            int     光照 (lux)
+   mode             str     "auto" / "manual"
+   key1_lock        bool    KEY1 物理状态
+   relay3           bool    灯光继电器 (GPIO6)
+   relay4           bool    风扇继电器 (GPIO7)
+   temp_threshold   float   温度高值阈值 (默认 30.0)
+   light_threshold  int     光照低值阈值 (默认 300)
+   -------------------------------------------------------------------------
+   触发上报: 60s 慢心跳兜底 / 收到 get_status / 命令处理完回包
+
+3) 下行 5 种 cmd
+   -------------------------------------------------------------------------
+   set_relay        relay: 3-4, value: bool
+                    控制继电器; KEY1 OFF 时静默忽略
+                    relay 3 -> 灯光, relay 4 -> 风扇
+   set_mode         mode: "auto" / "manual"
+                    切换自动/手动模式
+   get_status       (无参)
+                    设备立即上报一次完整 status
+   set_threshold    temp: float, light: int (可独立传)
+                    设置温度高值 / 光照低值阈值, NVS 持久化
+   reboot           (无参)
+                    设备先 publish 一次 status, 1s 后 ESP.restart()
+
+4) 串口命令 (设备端配置 MQTT 连接, V4.8 新增)
+   -------------------------------------------------------------------------
+   MQTT                     帮助 (打印命令列表)
+   MQTT SHOW                显示 5 项配置 + 连接状态
+   MQTT SET IP <ip>         例: MQTT SET IP 47.98.170.180
+   MQTT SET PORT <port>     例: MQTT SET PORT 8081
+   MQTT SET USER <user>     例: MQTT SET USER dzdx_emqx
+   MQTT SET PASS <pass>     例: MQTT SET PASS Jp4!sQ7$
+   MQTT SET ID <id>         例: MQTT SET ID PCT_100_005
+   MQTT CLEAR               恢复 5 项出厂默认 + 写 NVS + 自动重连
+   MQTT RECONNECT           强制 disconnect, 下次 update 自动重连
+   -------------------------------------------------------------------------
+   每条 SET 立即生效: 写变量 + 写 NVS + 自动 disconnect
+                     下次 loop 的 mqtt_mgr_update() 用新值重连
+
+5) NVS 存储 (Preferences.h, 命名空间 pct100)
+   -------------------------------------------------------------------------
+   键名: mqtt_ip / mqtt_port / mqtt_user / mqtt_pass / mqtt_id
+   缺失时用 mqtt_mgr.h 顶部 MQTT_*_DEFAULT 默认值
+
+6) MQTTX 使用 (PC 端工具, 免费)
+   -------------------------------------------------------------------------
+   下载: https://mqttx.app/zh
+   新建连接参数:
+     Name      : 任意 (如 PCT_100_005)
+     Host      : 47.98.170.180
+     Port      : 8081
+     Client ID : 不能用 PCT_100_005 (与设备冲突, broker 踢人)
+                 建议 mqttx_<你的名字>_<序号> (如 mqttx_lyg_001)
+     Username  : dzdx_emqx
+     Password  : Jp4!sQ7$
+     MQTT V    : 3.1.1
+     SSL/TLS   : 关闭
+     Keep Alive: 60
+   订阅 (New Subscription):
+     Topic : chemctrl/PCT_100_005/status   QoS 1   (不勾 Retain)
+     Topic : chemctrl/PCT_100_005/lwt      QoS 1   (勾选 Retain)
+
+7) ESP32-C3 烧录 + 实操流程
+   -------------------------------------------------------------------------
+   Arduino IDE:
+     开发板: ESP32C3 Dev Module
+     Flash : 4MB
+     Partition Scheme: Default 4MB with spiffs (NVS 需要 spiffs 分区)
+     烧录时按住 BOOT 按钮直到上传开始
+   串口 115200 看启动日志, 应有:
+     [MQTT] NVS 加载: 47.98.170.180:8081 user=dzdx_emqx id=PCT_100_005
+     [MQTT] 连接成功
+   测试流程:
+     (1) MQTTX 发 {"cmd":"get_status"} -> 立即收到 status
+     (2) 发 {"cmd":"set_relay","relay":3,"value":true} -> 灯亮 (继电器咔哒)
+     (3) 发 {"cmd":"set_relay","relay":4,"value":true} -> 风扇转
+     (4) 发 {"cmd":"set_threshold","temp":35.0,"light":250} -> 阈值更新
+     (5) 拔电源重插, OLED 显示 35.0/250 -> NVS 持久化验证
+     (6) KEY1 OFF -> set_relay 静默忽略, 串口打印 [MQTT] set_relay 拒绝: KEY1 OFF
+
+8) 常见问题
+   -------------------------------------------------------------------------
+   Q: 设备 rc= 错误?
+   A: rc=-2 凭证错或 Client ID 冲突; rc=-4 网络超时
+      试 MQTT RECONNECT 强制重连, 或 MQTT SET USER/PASS 重新触发
+   Q: MQTTX 收不到上报?
+   A: 1) 确认订阅了正确的 status topic
+      2) 串口看设备 [MQTT] 连接成功?
+      3) 主动发 get_status 触发上报
+   Q: ESP32-C3 烧录失败?
+   A: 1) USB 数据线 (非只充电线)
+      2) 烧录时按住 BOOT 按钮
+      3) Arduino IDE 开发板选 ESP32C3 Dev Module
+   Q: OLED 无显示?
+   A: 1) SDA=4, SCL=5 接对
+      2) 串口看 [OLED] 阈值已加载 (init 成功)
+      3) I2C 地址 (默认 0x3C)
+
+================================================================================
 版本历史
 --------------------------------------------------------------------------------
 V1.0  20260527  创建项目初始文件: 按键及继电器控制
@@ -171,4 +288,40 @@ V4.6   20260602  RGB 灯 WiFi 状态读取修复 (KEY1 OFF->ON 卡红):
                   - wifi_mgr_is_connected() 改为读 s_state 而非 WiFi.status()
                   - 修复 KEY1 ON 后 ESP32 WiFi 栈短暂抖动导致 LED 卡红色 bug
                   - 重启流程不受影响 (仍能正确变绿)
+V4.7   20260602  新增 MQTT 通信模块 (mqtt_mgr.h / mqtt_mgr.cpp):
+                  - Broker: 47.98.170.180:8081, MQTT 3.1.1, dzdx_emqx/Jp4!sQ7$
+                  - 设备 ID 用 version.h DEVICE_ID 宏 (烧录前改为丝印序列号)
+                  - 上行 topic: chemctrl/{id}/status, 10 字段 JSON
+                  - 下行 topic: chemctrl/{id}/command, 支持 5 种 cmd:
+                    set_relay (受 KEY1 约束) / get_status / set_mode /
+                    set_threshold / reboot
+                  - LWT 遗嘱: chemctrl/{id}/lwt, retain+qos1
+                  - 60s 慢心跳兜底 + server 主动 get_status 拉取并存
+                  - 阈值改为变量 (g_temp_threshold / g_light_threshold)
+                    NVS 持久化, MQTT 远程可改
+                  - OLED 加 5 行布局: 模式/光照/温度/WiFi+云端/灯+风扇
+                    新增 WiFi 与云端连接状态显示
+V4.8   20260602  MQTT 配置串口可改 + 持久化:
+                  - mqtt_mgr.h: 硬编码宏 -> 运行期变量 + 默认值宏
+                  - mqtt_mgr.cpp: NVS 加载/保存 (命名空间 pct100)
+                    5 键: mqtt_ip / mqtt_port / mqtt_user / mqtt_pass / mqtt_id
+                  - 串口命令 8 条 (一次性, 立即生效 + 写 NVS + 自动重连):
+                    MQTT SHOW
+                    MQTT SET IP <ip> / PORT <port> / USER <u> / PASS <p> / ID <id>
+                    MQTT CLEAR      恢复默认
+                    MQTT RECONNECT  强制重连
+                  - DEVICE_ID 改为运行期变量, version.h 仅保留默认值宏
+                  - 新增 console.h / console.cpp 串口行级分发器
+                    解决多 module 共享 Serial 输入的竞争
+                  - rgb_led_console 改用 console_take/give_back
+V4.9   20260602  readme.txt 补充 MQTT 通信模块完整使用说明:
+                  - 新增章节 "四、MQTT 通信模块" 包含:
+                    1) 通信协议 (broker/端口/凭证/device_id/topic)
+                    2) 上行 status 10 字段说明
+                    3) 下行 5 种 cmd payload 模板
+                    4) 8 条设备端串口 MQTT 命令
+                    5) NVS 存储键名
+                    6) MQTTX (PC 端) 完整连接步骤
+                    7) ESP32-C3 烧录 + 实操流程
+                    8) 常见问题排查
 ================================================================================
