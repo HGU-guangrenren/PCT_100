@@ -446,5 +446,10 @@ V6.2   20260603  回退 FreeRTOS 任务分离 + 1s TCP 短超时:
                     替代: try_connect() 中用 WiFiClient.setTimeout(1000)
                     将 TCP connect 超时从默认 5s 缩短为 1s
                     连不上时 loop 只卡 1s 而非 5s, 按键/灯/传感器不卡顿
-                      version.h: PROJECT_DATE 更新为 2026-06-03
+                       version.h: PROJECT_DATE 更新为 2026-06-03
+V6.3   20260603  MQTTX 灯/扇状态实时刷新加速:
+                      MQTT_HEARTBEAT_MS 60s→5s (兜底刷新上限)
+                      loop 末尾加 mqtt_mgr_publish_status()
+                      物理按键/自动模式切灯扇后即时上报, MQTTX 秒见
+                      配套: V6.3, readme 版本历史 + 注释更新
 ================================================================================
