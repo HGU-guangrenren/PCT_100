@@ -1,4 +1,5 @@
 #include "wifi_mgr.h"
+#include "console.h"
 #include <WiFi.h>
 #include <Preferences.h>
 
@@ -21,7 +22,6 @@ static unsigned long  s_conn_start   = 0;
 static int            s_net_count    = 0;
 static String         s_sel_ssid;        // 本次选中的 SSID
 static String         s_conn_pass;       // 本次连接的密码 (用于保存到 Flash)
-static String         s_line;            // 串口行输入缓冲
 static bool           s_should_save  = false;  // 连接成功是否写入 Flash
 
 static Preferences    s_nvs;
@@ -129,128 +129,125 @@ static void start_scan(void)
 }
 
 // ============================================================================
-// 串口行输入处理
+// 串口命令解析 (接入 console 体系, 与 mqtt_mgr_console / rgb_led_console 串联)
+//   命令:
+//     STATUS                  查看状态
+//     SCAN / RESCAN           重新扫描
+//     DISCONNECT / OFF / DC   断开
+//     RECONNECT / RC          重连
+//     RESET / CLEAR           清除 Flash
+//     HELP / ?                帮助
+//     <数字>                  WFS_SELECT 时选择网络序号
+//     <任意>                  WFS_PASSWORD 时作为密码
 // ============================================================================
-static void poll_serial(void)
+void wifi_mgr_console(void)
 {
-    while (Serial.available() > 0) {
-        char c = (char)Serial.read();
-        if (c == '\r') continue;
-        if (c == '\n') {
-            String line = s_line;
-            s_line = "";
-            line.trim();
+    String line = console_take();
+    if (line.length() == 0) return;
 
-            // --- 全局命令 (任何状态下都生效) ---
-            String up = line;
-            up.toUpperCase();
-            if (up == "RESET" || up == "CLEAR") {
-                clear_flash();
-                Serial.println("[WiFi] 已清除 Flash 中保存的账号密码, 请重启设备");
-                continue;
-            }
-            if (up == "STATUS") {
-                Serial.printf("[WiFi] 状态=%s  IP=%s  SSID=%s  RSSI=%d dBm\r\n",
-                    state_name(s_state),
-                    wifi_mgr_get_ip().c_str(),
-                    wifi_mgr_get_ssid().c_str(),
-                    wifi_mgr_get_rssi());
-                if (s_state == WFS_SELECT) {
-                    Serial.printf("[WiFi] 等待输入序号 (0~%d): ", s_net_count - 1);
-                } else if (s_state == WFS_PASSWORD) {
-                    Serial.print("[WiFi] 等待输入密码: ");
-                }
-                continue;
-            }
-            if (up == "SCAN" || up == "RESCAN") {
-                if (s_state != WFS_CONNECTING) {
-                    start_scan();
-                } else {
-                    Serial.println("[WiFi] 正在连接中, 暂不能重扫");
-                }
-                continue;
-            }
-            if (up == "HELP" || up == "?") {
-                Serial.println("[WiFi] 命令:");
-                Serial.println("  SCAN/RESCAN   重新扫描");
-                Serial.println("  STATUS        查看状态/IP/SSID/RSSI");
-                Serial.println("  DISCONNECT/OFF  断开当前 WiFi 连接");
-                Serial.println("  RECONNECT/RC    重新连接 (模式3读Flash, 其它重新扫描)");
-                Serial.println("  RESET/CLEAR    清除Flash中保存的账号");
-                continue;
-            }
-            if (up == "DISCONNECT" || up == "OFF" || up == "DC") {
-                if (WiFi.status() == WL_CONNECTED) {
-                    Serial.printf("[WiFi] 断开连接: SSID=%s IP=%s\r\n",
-                        WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-                } else {
-                    Serial.println("[WiFi] 当前未连接");
-                }
-                WiFi.disconnect();
-                s_state = WFS_IDLE;
-                Serial.println("[WiFi] 已断开, 输入 RECONNECT 重新连接, 或 SCAN 重新配网");
-                continue;
-            }
-            if (up == "RECONNECT" || up == "RC") {
-                if (s_state == WFS_CONNECTING) {
-                    Serial.println("[WiFi] 正在连接中, 请稍候");
-                    continue;
-                }
-                WiFi.disconnect();
-                delay(50);
-                Serial.println("[WiFi] >>> 重新连接...");
+    String up = line;
+    up.toUpperCase();
+
+    // --- 全局命令 (任何状态下都生效) ---
+    if (up == "RESET" || up == "CLEAR") {
+        clear_flash();
+        Serial.println("[WiFi] 已清除 Flash 中保存的账号密码, 请重启设备");
+        return;
+    }
+    if (up == "STATUS") {
+        Serial.printf("[WiFi] 状态=%s  IP=%s  SSID=%s  RSSI=%d dBm\r\n",
+            state_name(s_state),
+            wifi_mgr_get_ip().c_str(),
+            wifi_mgr_get_ssid().c_str(),
+            wifi_mgr_get_rssi());
+        if (s_state == WFS_SELECT) {
+            Serial.printf("[WiFi] 等待输入序号 (0~%d): ", s_net_count - 1);
+        } else if (s_state == WFS_PASSWORD) {
+            Serial.print("[WiFi] 等待输入密码: ");
+        }
+        return;
+    }
+    if (up == "SCAN" || up == "RESCAN") {
+        if (s_state != WFS_CONNECTING) {
+            start_scan();
+        } else {
+            Serial.println("[WiFi] 正在连接中, 暂不能重扫");
+        }
+        return;
+    }
+    if (up == "HELP" || up == "?") {
+        Serial.println("[WiFi] 命令:");
+        Serial.println("  SCAN/RESCAN   重新扫描");
+        Serial.println("  STATUS        查看状态/IP/SSID/RSSI");
+        Serial.println("  DISCONNECT/OFF  断开当前 WiFi 连接");
+        Serial.println("  RECONNECT/RC    重新连接 (模式3读Flash, 其它重新扫描)");
+        Serial.println("  RESET/CLEAR    清除Flash中保存的账号");
+        return;
+    }
+    if (up == "DISCONNECT" || up == "OFF" || up == "DC") {
+        if (WiFi.status() == WL_CONNECTED) {
+            Serial.printf("[WiFi] 断开连接: SSID=%s IP=%s\r\n",
+                WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+        } else {
+            Serial.println("[WiFi] 当前未连接");
+        }
+        WiFi.disconnect();
+        s_state = WFS_IDLE;
+        Serial.println("[WiFi] 已断开, 输入 RECONNECT 重新连接, 或 SCAN 重新配网");
+        return;
+    }
+    if (up == "RECONNECT" || up == "RC") {
+        if (s_state == WFS_CONNECTING) {
+            Serial.println("[WiFi] 正在连接中, 请稍候");
+            return;
+        }
+        WiFi.disconnect();
+        delay(50);
+        Serial.println("[WiFi] >>> 重新连接...");
 #if WIFI_MODE == WIFI_MODE_STATIC
-                s_should_save = true;
-                start_connect(String(WIFI_SSID), String(WIFI_PASSWORD));
+        s_should_save = true;
+        start_connect(String(WIFI_SSID), String(WIFI_PASSWORD));
 #elif WIFI_MODE == WIFI_MODE_SAVED
-                String ssid, pass;
-                load_from_flash(ssid, pass);
-                if (ssid.length() > 0) {
-                    s_should_save = true;
-                    start_connect(ssid, pass);
-                } else {
-                    s_should_save = true;
-                    start_scan();
-                }
+        String ssid, pass;
+        load_from_flash(ssid, pass);
+        if (ssid.length() > 0) {
+            s_should_save = true;
+            start_connect(ssid, pass);
+        } else {
+            s_should_save = true;
+            start_scan();
+        }
 #else
-                start_scan();
+        start_scan();
 #endif
-                continue;
-            }
+        return;
+    }
 
-            // --- 状态相关输入 ---
-            if (s_state == WFS_SELECT) {
-                int idx = line.toInt();
-                if (idx < 0 || idx >= s_net_count) {
-                    Serial.printf("[WiFi] 序号无效, 请重新输入 (0~%d): ", s_net_count - 1);
-                } else {
-                    s_sel_ssid = WiFi.SSID(idx);
-                    Serial.printf("[WiFi] 已选择: [%d] \"%s\"  信号=%d dBm  加密=%s\r\n",
-                        idx, s_sel_ssid.c_str(),
-                        WiFi.RSSI(idx), enc_name(WiFi.encryptionType(idx)));
-                    if (WiFi.encryptionType(idx) == WIFI_AUTH_OPEN) {
-                        Serial.println("[WiFi] 开放网络, 直接连接...");
-                        start_connect(s_sel_ssid, "");
-                    } else {
-                        Serial.print("[WiFi] 请输入密码: ");
-                        s_state = WFS_PASSWORD;
-                    }
-                }
-            }
-            else if (s_state == WFS_PASSWORD) {
-                start_connect(s_sel_ssid, line);
-            }
-            else if (line.length() > 0) {
-                Serial.printf("[WiFi] 当前状态=%s, 无可用输入 (HELP 查看命令)\r\n",
-                    state_name(s_state));
+    // --- 状态相关输入 ---
+    if (s_state == WFS_SELECT) {
+        int idx = line.toInt();
+        if (idx < 0 || idx >= s_net_count) {
+            Serial.printf("[WiFi] 序号无效, 请重新输入 (0~%d): ", s_net_count - 1);
+        } else {
+            s_sel_ssid = WiFi.SSID(idx);
+            Serial.printf("[WiFi] 已选择: [%d] \"%s\"  信号=%d dBm  加密=%s\r\n",
+                idx, s_sel_ssid.c_str(),
+                WiFi.RSSI(idx), enc_name(WiFi.encryptionType(idx)));
+            if (WiFi.encryptionType(idx) == WIFI_AUTH_OPEN) {
+                Serial.println("[WiFi] 开放网络, 直接连接...");
+                start_connect(s_sel_ssid, "");
+            } else {
+                Serial.print("[WiFi] 请输入密码: ");
+                s_state = WFS_PASSWORD;
             }
         }
-        else if (c == 0x08 || c == 0x7F) {  // 退格
-            if (s_line.length() > 0) s_line.remove(s_line.length() - 1);
-        }
-        else if (c >= 0x20 && c <= 0x7E) {  // 可打印字符
-            if (s_line.length() < 64) s_line += c;
-        }
+    }
+    else if (s_state == WFS_PASSWORD) {
+        start_connect(s_sel_ssid, line);
+    }
+    else if (line.length() > 0) {
+        Serial.printf("[WiFi] 当前状态=%s, 无可用输入 (HELP 查看命令)\r\n",
+            state_name(s_state));
     }
 }
 
@@ -271,7 +268,6 @@ void wifi_mgr_init(void)
 #endif
     Serial.println("============================================");
 
-    s_line.reserve(64);
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     delay(100);
@@ -311,7 +307,6 @@ void wifi_mgr_init(void)
 
 void wifi_mgr_update(void)
 {
-    poll_serial();
     unsigned long now = millis();
 
     switch (s_state) {
