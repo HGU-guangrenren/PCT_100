@@ -221,6 +221,4 @@ void loop()
 
         delay(50);
     }
-
-    mqtt_mgr_publish_status();   // 物理按键/自动模式切灯扇后即时上报
 }
