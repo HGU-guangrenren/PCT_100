@@ -15,7 +15,7 @@ extern bool fan_state(void);
 
 // 阈值变量定义
 float g_temp_threshold  = 30.0f;
-int   g_light_threshold = 300;
+int   g_light_threshold = 150;
 
 static const char* NVS_NS         = "pct100";
 static const char* NVS_KEY_TEMP   = "temp_th";
@@ -26,7 +26,7 @@ static void load_thresholds(void)
     Preferences p;
     p.begin(NVS_NS, true);
     g_temp_threshold  = p.getFloat(NVS_KEY_TEMP,  30.0f);
-    g_light_threshold = p.getInt(NVS_KEY_LIGHT,    300);
+    g_light_threshold = p.getInt(NVS_KEY_LIGHT,    150);
     p.end();
     Serial.printf("[OLED] 阈值已加载: temp=%.1f light=%d\n",
                   g_temp_threshold, g_light_threshold);

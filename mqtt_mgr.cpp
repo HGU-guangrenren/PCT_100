@@ -467,6 +467,8 @@ void mqtt_mgr_console(void)
         Serial.println("  MQTT SET USER <user>");
         Serial.println("  MQTT SET PASS <pass>");
         Serial.println("  MQTT SET ID <device_id>");
+        Serial.println("  MQTT SET LIGHT_TH <lux>  设置光照阈值 (lux)");
+        Serial.println("  MQTT SET TEMP_TH  <°C>   设置温度阈值 (°C)");
         Serial.println("  MQTT SHOW");
         Serial.println("  MQTT CLEAR");
         Serial.println("  MQTT RECONNECT");
@@ -512,13 +514,15 @@ void mqtt_mgr_console(void)
             return;
         }
 
-        if      (key == "IP")   mqtt_mgr_set_ip(val.c_str());
-        else if (key == "PORT") mqtt_mgr_set_port((uint16_t)val.toInt());
-        else if (key == "USER") mqtt_mgr_set_user(val.c_str());
-        else if (key == "PASS") mqtt_mgr_set_pass(val.c_str());
-        else if (key == "ID")   mqtt_mgr_set_device_id(val.c_str());
+        if      (key == "IP")        mqtt_mgr_set_ip(val.c_str());
+        else if (key == "PORT")      mqtt_mgr_set_port((uint16_t)val.toInt());
+        else if (key == "USER")      mqtt_mgr_set_user(val.c_str());
+        else if (key == "PASS")      mqtt_mgr_set_pass(val.c_str());
+        else if (key == "ID")        mqtt_mgr_set_device_id(val.c_str());
+        else if (key == "LIGHT_TH")  oled_set_light_threshold((int)val.toInt());
+        else if (key == "TEMP_TH")   oled_set_temp_threshold(val.toFloat());
         else {
-            Serial.printf("[MQTT] 未知 KEY '%s', 支持: IP/PORT/USER/PASS/ID\n", key.c_str());
+            Serial.printf("[MQTT] 未知 KEY '%s', 支持: IP/PORT/USER/PASS/ID/LIGHT_TH/TEMP_TH\n", key.c_str());
         }
     }
     else {
