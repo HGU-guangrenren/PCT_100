@@ -117,11 +117,14 @@ void loop()
 {
     exti_update();
     oled_update();
-    wifi_mgr_update();
     rgb_led_update();
+
     console_pump();
     mqtt_mgr_console();
     rgb_led_console();
+    wifi_mgr_console();
+
+    wifi_mgr_update();
     mqtt_mgr_update();
 
     bool conn = wifi_mgr_is_connected();
