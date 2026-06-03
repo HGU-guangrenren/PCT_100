@@ -79,7 +79,6 @@ void rgb_led_update(void)
     if (test_mode) return;
 
     unsigned long now = millis();
-    anim_ms = now;
 
     switch (cur_mode) {
         // === 开机/庆祝 (保留原行为, 仅改结束后跳转目标) ===
