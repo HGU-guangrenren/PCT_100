@@ -2,9 +2,9 @@
 #define _VERSION_H_
 
 
-#define VERSION "V4.6"
+#define VERSION "V4.9"
 
-#define DEVICE_ID "PCT_100_005"
+#define DEVICE_ID_DEFAULT "PCT_100_005"
 
 
 #define PROJECT_NAME "PCT_100_CTL"

@@ -6,6 +6,8 @@
 #include "version.h"
 #include "wifi_mgr.h"
 #include "rgb_led.h"
+#include "mqtt_mgr.h"
+#include "console.h"
 
 static bool powerOn = false;
 static int mode = 0;
@@ -108,6 +110,7 @@ void setup()
     delay(100);
     rgb_led_init();
     wifi_mgr_init();
+    mqtt_mgr_init();
 }
 
 void loop()
@@ -116,7 +119,10 @@ void loop()
     oled_update();
     wifi_mgr_update();
     rgb_led_update();
+    console_pump();
+    mqtt_mgr_console();
     rgb_led_console();
+    mqtt_mgr_update();
 
     bool conn = wifi_mgr_is_connected();
     rgb_mode_t target = conn ? RGB_MODE_WIFI_OK : RGB_MODE_WIFI_DISC;
@@ -185,7 +191,7 @@ void loop()
             led_off();
         }
 
-        if (oled_get_temp() > TEMP_THRESHOLD) {
+        if (oled_get_temp() > g_temp_threshold) {
             fan_on();
         } else {
             fan_off();
