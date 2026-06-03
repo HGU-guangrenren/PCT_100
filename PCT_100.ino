@@ -118,12 +118,13 @@ void loop()
     rgb_led_update();
     rgb_led_console();
 
-    static rgb_mode_t last_rgb = RGB_MODE_BOOT;
     bool conn = wifi_mgr_is_connected();
     rgb_mode_t target = conn ? RGB_MODE_WIFI_OK : RGB_MODE_WIFI_DISC;
-    if (target != last_rgb) {
-        rgb_led_set_mode(target);
-        last_rgb = target;
+    rgb_mode_t cur = rgb_led_get_mode();
+    if (cur == RGB_MODE_WIFI_OK || cur == RGB_MODE_WIFI_DISC) {
+        if (cur != target) {
+            rgb_led_set_mode(target);
+        }
     }
 
     // ------ KEY1: 自锁开关 ------

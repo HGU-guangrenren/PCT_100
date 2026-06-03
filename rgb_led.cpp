@@ -42,6 +42,11 @@ void rgb_led_set_mode(rgb_mode_t m)
     strip.show();
 }
 
+rgb_mode_t rgb_led_get_mode(void)
+{
+    return cur_mode;
+}
+
 void rgb_led_test_color(uint8_t r, uint8_t g, uint8_t b)
 {
     test_mode = true;

@@ -17,6 +17,7 @@ typedef enum {
 
 void rgb_led_init(void);
 void rgb_led_set_mode(rgb_mode_t m);
+rgb_mode_t rgb_led_get_mode(void);
 void rgb_led_test_color(uint8_t r, uint8_t g, uint8_t b);
 void rgb_led_exit_test_mode(void);
 void rgb_led_trigger_boot_success(void);
