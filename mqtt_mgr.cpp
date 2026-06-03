@@ -22,7 +22,9 @@ static char            s_status_topic[MQTT_TOPIC_LEN];
 static char            s_command_topic[MQTT_TOPIC_LEN];
 static char            s_lwt_topic[MQTT_TOPIC_LEN];
 static unsigned long   s_last_publish = 0;
+static unsigned long   s_last_connect_attempt = 0;
 static bool            s_initialized  = false;
+static bool            s_was_wifi_connected = false;
 
 // ============================================================================
 // 配置变量 (运行期可变, NVS 持久化)
@@ -230,6 +232,7 @@ static bool try_connect(void)
 
     if (!ok) {
         Serial.printf("[MQTT] 连接失败, rc=%d\n", s_mqtt.state());
+        s_last_connect_attempt = millis();
         return false;
     }
 
@@ -241,8 +244,15 @@ static bool try_connect(void)
     Serial.printf("[MQTT] LWT online -> %s\n", s_lwt_topic);
 
     s_last_publish = millis();
+    s_last_connect_attempt = millis();
     mqtt_mgr_publish_status();
     return true;
+}
+
+// 配置被改 / 强制重连后, 让下一次 update() 立即重试 (不受 5s 间隔约束)
+static void reset_retry_timer(void)
+{
+    s_last_connect_attempt = 0;
 }
 
 // ============================================================================
@@ -266,7 +276,21 @@ void mqtt_mgr_update(void)
 {
     if (!s_initialized) return;
 
-    if (!wifi_mgr_is_connected()) {
+    bool wifi_ok = wifi_mgr_is_connected();
+
+    // WiFi 刚恢复: 立即尝试一次 MQTT 连接 (不等待 5s 重试间隔)
+    if (wifi_ok && !s_was_wifi_connected) {
+        s_was_wifi_connected = true;
+        if (!s_mqtt.connected()) {
+            s_last_connect_attempt = millis();
+            try_connect();
+            return;
+        }
+    } else if (!wifi_ok) {
+        s_was_wifi_connected = false;
+    }
+
+    if (!wifi_ok) {
         if (s_mqtt.connected()) {
             Serial.println("[MQTT] WiFi 断开, MQTT 断开");
             s_mqtt.disconnect();
@@ -275,7 +299,11 @@ void mqtt_mgr_update(void)
     }
 
     if (!s_mqtt.connected()) {
-        try_connect();
+        unsigned long now = millis();
+        if (now - s_last_connect_attempt > MQTT_RETRY_INTERVAL_MS) {
+            s_last_connect_attempt = now;
+            try_connect();
+        }
         return;
     }
 
@@ -308,6 +336,7 @@ void mqtt_mgr_set_ip(const char* ip)
     Serial.printf("[MQTT] IP -> %s\n", s_ip);
     s_mqtt.setServer(s_ip, s_port);
     if (s_mqtt.connected()) s_mqtt.disconnect();
+    reset_retry_timer();
 }
 
 void mqtt_mgr_set_port(uint16_t port)
@@ -321,6 +350,7 @@ void mqtt_mgr_set_port(uint16_t port)
     Serial.printf("[MQTT] PORT -> %u\n", s_port);
     s_mqtt.setServer(s_ip, s_port);
     if (s_mqtt.connected()) s_mqtt.disconnect();
+    reset_retry_timer();
 }
 
 void mqtt_mgr_set_user(const char* user)
@@ -334,6 +364,7 @@ void mqtt_mgr_set_user(const char* user)
     save_mqtt_config();
     Serial.printf("[MQTT] USER -> %s\n", s_user);
     if (s_mqtt.connected()) s_mqtt.disconnect();
+    reset_retry_timer();
 }
 
 void mqtt_mgr_set_pass(const char* pass)
@@ -347,6 +378,7 @@ void mqtt_mgr_set_pass(const char* pass)
     save_mqtt_config();
     Serial.printf("[MQTT] PASS -> %s (已保存)\n", s_pass);
     if (s_mqtt.connected()) s_mqtt.disconnect();
+    reset_retry_timer();
 }
 
 void mqtt_mgr_set_device_id(const char* id)
@@ -365,6 +397,7 @@ void mqtt_mgr_set_device_id(const char* id)
     Serial.printf("[MQTT] ID -> %s\n", s_device_id);
     build_topics();
     if (s_mqtt.connected()) s_mqtt.disconnect();
+    reset_retry_timer();
 }
 
 void mqtt_mgr_clear_config(void)
@@ -383,6 +416,7 @@ void mqtt_mgr_clear_config(void)
     s_mqtt.setServer(s_ip, s_port);
     build_topics();
     if (s_mqtt.connected()) s_mqtt.disconnect();
+    reset_retry_timer();
 }
 
 void mqtt_mgr_reconnect(void)
@@ -390,6 +424,7 @@ void mqtt_mgr_reconnect(void)
     Serial.println("[MQTT] 强制重连");
     s_mqtt.setServer(s_ip, s_port);
     if (s_mqtt.connected()) s_mqtt.disconnect();
+    reset_retry_timer();
 }
 
 // ============================================================================
