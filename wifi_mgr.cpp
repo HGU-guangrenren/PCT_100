@@ -414,7 +414,7 @@ void wifi_mgr_update(void)
 // ---------------------------------------------------------------------------
 bool wifi_mgr_is_connected(void)
 {
-    return WiFi.status() == WL_CONNECTED;
+    return s_state == WFS_CONNECTED;
 }
 
 String wifi_mgr_get_ip(void)
