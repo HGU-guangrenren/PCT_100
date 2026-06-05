@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>控制终端 - PCT_100 过程控制</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+:root{--bg-primary:#0a0e17;--bg-secondary:#111827;--bg-card:#1a2332;--text-primary:#e8edf5;--text-secondary:#94a3b8;--text-muted:#64748b;--accent-cyan:#06b6d4;--accent-blue:#3b82f6;--accent-amber:#f59e0b;--accent-emerald:#10b981;--accent-rose:#f43f5e;--border-dim:rgba(148,163,184,0.08);--border-glow:rgba(6,182,212,0.15)}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.7;overflow-x:hidden}
+::selection{background:var(--accent-cyan);color:#000}
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:var(--bg-primary)}
+::-webkit-scrollbar-thumb{background:var(--accent-cyan);border-radius:4px}
+a{color:var(--accent-cyan);text-decoration:none;transition:color .2s}
+a:hover{color:var(--accent-blue)}
+body::before{content:'';position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:9999}
+.nav-dropdown{position:relative}
+.nav-dropdown .dropdown{position:absolute;top:100%;left:50%;transform:translateX(-50%) translateY(8px);background:rgba(16,24,39,0.95);backdrop-filter:blur(16px);border:1px solid var(--border-dim);border-radius:8px;padding:8px 0;min-width:140px;opacity:0;visibility:hidden;transition:all .25s;z-index:200}
+.nav-dropdown:hover .dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(4px)}
+.nav-dropdown .dropdown a{display:block;padding:8px 20px;font-size:.8rem;color:var(--text-secondary);white-space:nowrap}
+.nav-dropdown .dropdown a:hover{color:var(--text-primary);background:rgba(148,163,184,0.06)}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,23,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border-dim);transition:transform .3s}
+nav.scrolled{background:rgba(10,14,23,0.95)}
+.nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;display:flex;align-items:center;height:60px;gap:32px}
+.nav-logo{font-weight:700;font-size:1.1rem;color:var(--accent-cyan);white-space:nowrap;letter-spacing:.5px}
+.nav-logo span{color:var(--text-muted);font-weight:300}
+.nav-links{display:flex;gap:24px;list-style:none;overflow-x:auto;scrollbar-width:none;align-items:center}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{color:var(--text-secondary);font-size:.85rem;white-space:nowrap;position:relative;padding:4px 0}
+.nav-links a::after{content:'';position:absolute;bottom:0;left:0;width:0;height:2px;background:var(--accent-cyan);transition:width .3s}
+.nav-links a:hover::after,.nav-links a.active::after{width:100%}
+.nav-links a:hover{color:var(--text-primary)}
+.nav-version{color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:.75rem;margin-left:auto;white-space:nowrap}
+.hamburger{display:none;flex-direction:column;cursor:pointer;gap:5px;padding:4px;margin-left:auto;background:none;border:none}
+.hamburger span{display:block;width:22px;height:2px;background:var(--text-secondary);border-radius:2px;transition:all .3s}
+.hamburger.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+.hamburger.active span:nth-child(2){opacity:0}
+.hamburger.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+.nav-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:98}
+.nav-mobile-overlay.open{display:block}
+
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .5s ease,transform .5s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* hero */
+.hero{padding:100px 24px 40px;text-align:center;position:relative}
+.hero h1{font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;margin-bottom:8px}
+.hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent-cyan),var(--accent-rose));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{color:var(--text-secondary);font-size:.95rem;max-width:500px;margin:0 auto}
+.hero-badge{display:inline-block;padding:4px 14px;border:1px solid var(--accent-cyan);border-radius:20px;font-size:.72rem;color:var(--accent-cyan);letter-spacing:2px;margin-bottom:14px}
+
+/* layout */
+.page{max-width:1200px;margin:0 auto;padding:0 24px 80px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+/* cards */
+.card{background:var(--bg-card);border:1px solid var(--border-dim);border-radius:12px;padding:24px;transition:all .3s}
+.card:hover{border-color:var(--border-glow)}
+.card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-title{font-size:.9rem;font-weight:600;color:var(--text-primary)}
+.card-title .ic{color:var(--accent-cyan);margin-right:6px}
+.card-sub{font-size:.75rem;color:var(--text-muted)}
+
+/* connection status */
+.conn-indicator{display:inline-flex;align-items:center;gap:6px;padding:4px 14px;border-radius:20px;font-size:.75rem;font-weight:500;font-family:'JetBrains Mono',monospace}
+.conn-indicator.dot::before{content:'';width:8px;height:8px;border-radius:50%;display:inline-block}
+.conn-indicator.disconnected{background:rgba(148,163,184,0.1);color:var(--text-muted)}
+.conn-indicator.disconnected.dot::before{background:var(--text-muted)}
+.conn-indicator.connecting{background:rgba(245,158,11,0.1);color:var(--accent-amber)}
+.conn-indicator.connecting.dot::before{background:var(--accent-amber);animation:pulse 1s infinite}
+.conn-indicator.connected{background:rgba(16,185,129,0.1);color:var(--accent-emerald)}
+.conn-indicator.connected.dot::before{background:var(--accent-emerald)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* form */
+.form-row{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.form-group{flex:1;min-width:120px}
+.form-group label{display:block;font-size:.72rem;color:var(--text-muted);margin-bottom:4px;font-weight:500}
+.form-group input,.form-group select{width:100%;padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border-dim);border-radius:6px;color:var(--text-primary);font-size:.82rem;font-family:'JetBrains Mono',monospace;outline:none;transition:border .2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent-cyan)}
+.form-group input::placeholder{color:var(--text-muted);font-size:.75rem}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;font-size:.82rem;font-weight:500;border:none;cursor:pointer;transition:all .25s;font-family:inherit}
+.btn:active{transform:scale(.97)}
+.btn-prime{background:linear-gradient(135deg,var(--accent-cyan),var(--accent-blue));color:#fff}
+.btn-prime:hover{box-shadow:0 4px 20px rgba(6,182,212,.3)}
+.btn-green{background:linear-gradient(135deg,var(--accent-emerald),var(--accent-cyan));color:#fff}
+.btn-green:hover{box-shadow:0 4px 20px rgba(16,185,129,.3)}
+.btn-amber{background:linear-gradient(135deg,var(--accent-amber),var(--accent-rose));color:#fff}
+.btn-amber:hover{box-shadow:0 4px 20px rgba(245,158,11,.3)}
+.btn-rose{background:linear-gradient(135deg,var(--accent-rose),#dc2626);color:#fff}
+.btn-rose:hover{box-shadow:0 4px 20px rgba(244,63,94,.3)}
+.btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border-dim)}
+.btn-ghost:hover{background:rgba(148,163,184,0.08);color:var(--text-primary)}
+.btn-sm{padding:5px 12px;font-size:.75rem}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap}
+
+/* gauge */
+.gauge-wrap{text-align:center;padding:16px 0}
+.gauge-svg{width:140px;height:100px;position:relative;display:inline-block}
+.gauge-value{font-family:'JetBrains Mono',monospace;font-size:1.6rem;font-weight:600;color:var(--text-primary)}
+.gauge-label{font-size:.72rem;color:var(--text-muted);margin-top:2px}
+.gauge-arc{fill:none;stroke-width:10;stroke-linecap:round}
+
+/* device status */
+.status-row{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+.status-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:.8rem;font-weight:500;background:var(--bg-secondary);border:1px solid var(--border-dim)}
+.status-chip .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.status-chip .dot.on{background:var(--accent-emerald);box-shadow:0 0 8px rgba(16,185,129,.5)}
+.status-chip .dot.off{background:var(--text-muted)}
+.status-chip .dot.auto{background:var(--accent-cyan);box-shadow:0 0 8px rgba(6,182,212,.5)}
+.status-chip .dot.manual{background:var(--accent-amber);box-shadow:0 0 8px rgba(245,158,11,.5)}
+
+/* threshold slider */
+.th-group{margin-bottom:16px}
+.th-header{display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:6px}
+.th-header .label{color:var(--text-primary)}
+.th-header .val{color:var(--accent-cyan);font-family:'JetBrains Mono',monospace}
+input[type=range]{-webkit-appearance:none;width:100%;height:6px;border-radius:3px;background:var(--bg-secondary);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent-cyan);cursor:pointer;border:2px solid var(--bg-primary);box-shadow:0 0 8px rgba(6,182,212,.3)}
+
+/* log */
+.log-wrap{background:var(--bg-secondary);border:1px solid var(--border-dim);border-radius:8px;padding:12px;max-height:260px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:.75rem;line-height:1.6}
+.log-wrap::-webkit-scrollbar{width:4px}
+.log-entry{padding:2px 0;border-bottom:1px solid rgba(148,163,184,0.05);display:flex;gap:8px}
+.log-time{color:var(--text-muted);flex-shrink:0;min-width:60px}
+.log-msg{color:var(--text-secondary);word-break:break-all}
+.log-msg.ok{color:var(--accent-emerald)}
+.log-msg.err{color:var(--accent-rose)}
+.log-msg.cmd{color:var(--accent-amber)}
+.log-msg.info{color:var(--accent-cyan)}
+
+footer{border-top:1px solid var(--border-dim);padding:40px 24px;text-align:center}
+footer p{font-size:.78rem;color:var(--text-muted)}
+
+@media(max-width:768px){
+  .nav-links{display:none;position:fixed;top:0;right:-280px;width:260px;height:100vh;background:var(--bg-secondary);flex-direction:column;padding:80px 24px 24px;gap:8px;transition:right .3s;z-index:99;overflow-y:auto}
+  .nav-links.open{right:0;display:flex}
+  .nav-links a{padding:12px 0;font-size:.9rem}
+  .hamburger{display:flex}
+  .hero{padding:80px 20px 30px}
+  .page{padding:0 16px 60px}
+  .form-row{flex-direction:column}
+  .btn-group{gap:6px}
+}
+</style>
+</head>
+<body>
+
+<nav id="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">PCT_100<span>_CTL</span></a>
+    <ul class="nav-links">
+      <li class="nav-dropdown">
+        <a href="index.html">产品说明书</a>
+        <div class="dropdown">
+          <a href="index.html#overview">概述</a>
+          <a href="index.html#features">功能特性</a>
+          <a href="index.html#specs">技术规格</a>
+          <a href="index.html#wifi">WiFi 配网</a>
+          <a href="index.html#mqtt">MQTT 通信</a>
+          <a href="index.html#pinout">引脚定义</a>
+          <a href="index.html#changelog">版本历史</a>
+        </div>
+      </li>
+      <li><a href="dashboard.html">项目看板</a></li>
+      <li><a href="guide.html">入门指南</a></li>
+      <li><a href="terminal.html" class="active">控制终端</a></li>
+    </ul>
+    <div class="nav-version">V6.3</div>
+    <button class="hamburger" id="hamburger" aria-label="菜单">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="nav-mobile-overlay" id="navOverlay"></div>
+</nav>
+
+<section class="hero reveal visible" style="opacity:1;transform:none">
+  <div class="hero-badge">REAL-TIME · MQTT</div>
+  <h1>过程<em>控制终端</em></h1>
+  <p>通过 MQTT WebSocket 实时监控 PCT_100 设备状态并下发控制命令</p>
+</section>
+
+<div class="page">
+
+  <!-- Connection -->
+  <div class="card reveal" style="margin-bottom:20px">
+    <div class="card-h">
+      <div class="card-title"><span class="ic">🔌</span>MQTT 连接</div>
+      <div id="connStatus" class="conn-indicator dot disconnected">未连接</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Broker 地址</label><input id="brokerIp" value="your_broker_ip" placeholder="IP 或域名"></div>
+      <div class="form-group" style="min-width:80px;flex:0"><label>端口</label><input id="brokerPort" value="8083" placeholder="8083"></div>
+      <div class="form-group"><label>用户名</label><input id="brokerUser" value="your_username" placeholder="MQTT 用户名"></div>
+      <div class="form-group"><label>密码</label><input id="brokerPass" type="password" value="your_password" placeholder="MQTT 密码"></div>
+      <div class="form-group" style="min-width:110px"><label>设备 ID</label><input id="deviceId" value="PCT_100_005" placeholder="设备 ID"></div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <button class="btn btn-prime" id="btnConnect">连接</button>
+        <button class="btn btn-ghost" id="btnDisconnect" disabled>断开</button>
+      </div>
+    </div>
+    <div style="margin-top:8px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.78rem;color:var(--text-muted)">
+        <input type="checkbox" id="demoMode"> 离线模拟模式（无真实设备时使用）
+      </label>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="grid-2" style="margin-bottom:20px">
+    <!-- Status Left -->
+    <div class="card reveal">
+      <div class="card-h">
+        <div class="card-title"><span class="ic">📊</span>实时状态</div>
+        <span id="lastUpdate" class="card-sub">等待数据...</span>
+      </div>
+      <div class="grid-2" style="gap:8px">
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 140 100">
+            <path class="gauge-arc" stroke="rgba(148,163,184,0.12)" d="M20,90 A60,60 0 1,1 120,90"/>
+            <path class="gauge-arc" id="tempArc" stroke="#06b6d4" d="M20,90 A60,60 0 1,1 120,90" stroke-dasharray="0 188.5" style="transition:stroke-dasharray .6s"/>
+            <text x="70" y="52" text-anchor="middle" fill="#e8edf5" font-size="10" font-family="'JetBrains Mono',monospace" font-weight="600">0.0</text>
+            <text x="108" y="58" text-anchor="middle" fill="var(--accent-cyan)" font-size="6">°C</text>
+          </svg>
+          <div class="gauge-label">温度</div>
+        </div>
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 140 100">
+            <path class="gauge-arc" stroke="rgba(148,163,184,0.12)" d="M20,90 A60,60 0 1,1 120,90"/>
+            <path class="gauge-arc" id="lightArc" stroke="#f59e0b" d="M20,90 A60,60 0 1,1 120,90" stroke-dasharray="0 188.5" style="transition:stroke-dasharray .6s"/>
+            <text x="70" y="52" text-anchor="middle" fill="#e8edf5" font-size="10" font-family="'JetBrains Mono',monospace" font-weight="600">0</text>
+            <text x="105" y="58" text-anchor="middle" fill="var(--accent-amber)" font-size="6">lux</text>
+          </svg>
+          <div class="gauge-label">光照</div>
+        </div>
+      </div>
+      <div class="status-row" style="justify-content:center">
+        <div class="status-chip"><span class="dot" id="modeDot"></span><span id="modeLabel">--</span></div>
+        <div class="status-chip"><span class="dot" id="key1Dot"></span>KEY1 <span id="key1Label">--</span></div>
+        <div class="status-chip"><span class="dot" id="relay3Dot"></span>灯 <span id="relay3Label">--</span></div>
+        <div class="status-chip"><span class="dot" id="relay4Dot"></span>风扇 <span id="relay4Label">--</span></div>
+      </div>
+    </div>
+
+    <!-- Commands Right -->
+    <div class="card reveal">
+      <div class="card-h">
+        <div class="card-title"><span class="ic">🎮</span>控制命令</div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div class="card-sub" style="margin-bottom:8px">继电器控制</div>
+        <div class="btn-group">
+          <button class="btn btn-green btn-sm" data-cmd='{"cmd":"set_relay","relay":3,"value":true}'>开灯</button>
+          <button class="btn btn-ghost btn-sm" data-cmd='{"cmd":"set_relay","relay":3,"value":false}'>关灯</button>
+          <button class="btn btn-green btn-sm" data-cmd='{"cmd":"set_relay","relay":4,"value":true}'>开风扇</button>
+          <button class="btn btn-ghost btn-sm" data-cmd='{"cmd":"set_relay","relay":4,"value":false}'>关风扇</button>
+        </div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div class="card-sub" style="margin-bottom:8px">模式切换</div>
+        <div class="btn-group">
+          <button class="btn btn-prime btn-sm" data-cmd='{"cmd":"set_mode","mode":"auto"}'>自动模式</button>
+          <button class="btn btn-amber btn-sm" data-cmd='{"cmd":"set_mode","mode":"manual"}'>手动模式</button>
+        </div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div class="card-sub" style="margin-bottom:8px">系统</div>
+        <div class="btn-group">
+          <button class="btn btn-ghost btn-sm" data-cmd='{"cmd":"get_status"}'>获取状态</button>
+          <button class="btn btn-rose btn-sm" data-cmd='{"cmd":"reboot"}'>重启设备</button>
+        </div>
+      </div>
+      <div>
+        <div class="card-sub" style="margin-bottom:8px">阈值设置</div>
+        <div class="th-group">
+          <div class="th-header"><span class="label">温度阈值</span><span class="val" id="tempThVal">30.0 °C</span></div>
+          <input type="range" id="tempThSlider" min="10" max="60" value="30" step="0.5">
+        </div>
+        <div class="th-group">
+          <div class="th-header"><span class="label">光照阈值</span><span class="val" id="lightThVal">150 lux</span></div>
+          <input type="range" id="lightThSlider" min="0" max="500" value="150" step="10">
+        </div>
+        <button class="btn btn-prime btn-sm" id="btnSetThreshold">下发阈值</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card reveal">
+    <div class="card-h">
+      <div class="card-title"><span class="ic">📋</span>消息日志</div>
+      <button class="btn btn-ghost btn-sm" id="btnClearLog">清空</button>
+    </div>
+    <div class="log-wrap" id="logWrap"></div>
+  </div>
+
+</div>
+
+<footer>
+  <p>PCT_100_CTL &nbsp;·&nbsp; 过程控制终端 &nbsp;·&nbsp; MQTT WebSocket 实时监控</p>
+</footer>
+
+<script>
+// === State ===
+let mqttClient = null;
+let connected = false;
+let demoInterval = null;
+const topics = { status: null, lwt: null };
+
+function el(id){return document.getElementById(id)}
+function log(msg, type='info'){
+  const w=el('logWrap');
+  const d=document.createElement('div');
+  d.className='log-entry';
+  const t=new Date();
+  const ts=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')+':'+String(t.getSeconds()).padStart(2,'0');
+  d.innerHTML=`<span class="log-time">${ts}</span><span class="log-msg ${type}">${msg}</span>`;
+  w.appendChild(d);
+  w.scrollTop=w.scrollHeight;
+}
+
+function setConnStatus(state, label){
+  const s=el('connStatus');
+  s.className='conn-indicator dot '+state;
+  s.textContent=label;
+}
+
+function updateGauge(id, value, max, unit){
+  const arc=el(id);
+  const circumference=188.5;
+  const pct=Math.min(value/max,1);
+  const offset=circumference*(1-pct);
+  arc.setAttribute('stroke-dasharray', (circumference-offset)+' '+circumference);
+  const txt=arc.closest('svg').querySelector('text');
+  if(txt) txt.textContent=value;
+}
+function updateTempGauge(v){updateGauge('tempArc',v,60,'°C')}
+function updateLightGauge(v){updateGauge('lightArc',v,500,'lux')}
+
+function updateStatus(data){
+  const d=data||{};
+  const temp=d.temperature!==undefined?d.temperature:0;
+  const light=d.light!==undefined?d.light:0;
+  const mode=d.mode||'--';
+  const key1=d.key1_lock!==undefined?d.key1_lock:null;
+  const r3=d.relay3!==undefined?d.relay3:null;
+  const r4=d.relay4!==undefined?d.relay4:null;
+  const tt=d.temp_threshold!==undefined?d.temp_threshold:null;
+  const lt=d.light_threshold!==undefined?d.light_threshold:null;
+
+  updateTempGauge(temp);
+  updateLightGauge(light);
+
+  const md=el('modeDot');const ml=el('modeLabel');
+  if(mode==='auto'){md.className='dot auto';ml.textContent='自动模式'}
+  else if(mode==='manual'){md.className='dot manual';ml.textContent='手动模式'}
+  else{md.className='dot off';ml.textContent=mode}
+
+  function setChip(dotId, labelId, val, onLabel, offLabel){
+    const d=el(dotId);const l=el(labelId);
+    if(val===true){d.className='dot on';l.textContent=onLabel}
+    else if(val===false){d.className='dot off';l.textContent=offLabel}
+    else{d.className='dot off';l.textContent='--'}
+  }
+  setChip('key1Dot','key1Label',key1,'闭合','断开');
+  setChip('relay3Dot','relay3Label',r3,'开','关');
+  setChip('relay4Dot','relay4Label',r4,'开','关');
+
+  if(tt!==null){el('tempThSlider').value=tt;el('tempThVal').textContent=tt+' °C'}
+  if(lt!==null){el('lightThSlider').value=lt;el('lightThVal').textContent=lt+' lux'}
+
+  el('lastUpdate').textContent='更新: '+new Date().toLocaleTimeString();
+}
+
+// === Demo Mode ===
+function startDemo(){
+  let temp=25, light=200, mode='auto', key1=true, r3=false, r4=false;
+  log('进入离线模拟模式','info');
+  demoInterval=setInterval(()=>{
+    temp=Math.round((temp+(Math.random()-.5)*2)*10)/10;
+    temp=Math.max(0,Math.min(60,temp));
+    light=Math.round(light+(Math.random()-.5)*30);
+    light=Math.max(0,Math.min(500,light));
+    if(Math.random()<.05){mode=mode==='auto'?'manual':'auto'}
+    if(Math.random()<.1){key1=!key1}
+    if(mode==='auto'){
+      r3=light<Number(el('lightThSlider').value);
+      r4=temp>Number(el('tempThSlider').value);
+    }
+    updateStatus({temperature:temp,light,light_threshold:Number(el('lightThSlider').value),temp_threshold:Number(el('tempThSlider').value),mode,key1_lock:key1,relay3:r3,relay4:r4});
+    log(`模拟: temp=${temp}°C light=${light}lux mode=${mode} key1=${key1} 灯=${r3} 风扇=${r4}`,'info');
+  },3000);
+}
+
+function stopDemo(){
+  if(demoInterval){clearInterval(demoInterval);demoInterval=null}
+}
+
+// === MQTT ===
+function connectMQTT(){
+  if(connected) return;
+  if(el('demoMode').checked){
+    setConnStatus('connected','模拟模式');
+    connected=true;
+    el('btnConnect').disabled=true;el('btnDisconnect').disabled=false;
+    updateStatus({temperature:25.5,light:180,mode:'auto',key1_lock:true,relay3:false,relay4:true,temp_threshold:30,light_threshold:150});
+    log('Demo 模式已启动','ok');
+    startDemo();
+    return;
+  }
+  const ip=el('brokerIp').value.trim();
+  const port=el('brokerPort').value.trim();
+  const user=el('brokerUser').value.trim();
+  const pass=el('brokerPass').value.trim();
+  const id=el('deviceId').value.trim();
+  if(!ip||!port||!user||!pass||!id){log('请填写所有 MQTT 连接信息','err');return}
+  setConnStatus('connecting','连接中...');
+  const url='ws://'+ip+':'+port+'/mqtt';
+  log('正在连接 '+url,'info');
+  try{
+    mqttClient=mqtt.connect(url,{username:user,password:pass,clientId:'web_terminal_'+Math.random().toString(36).slice(2,8),clean:true,reconnectPeriod:5000,connectTimeout:10000});
+    mqttClient.on('connect',()=>{
+      connected=true;
+      setConnStatus('connected','已连接');
+      el('btnConnect').disabled=true;el('btnDisconnect').disabled=false;
+      const statusTopic='chemctrl/'+id+'/status';
+      const lwtTopic='chemctrl/'+id+'/lwt';
+      topics.status=statusTopic;topics.lwt=lwtTopic;
+      mqttClient.subscribe(statusTopic,{qos:1});
+      mqttClient.subscribe(lwtTopic,{qos:1});
+      log('已连接，订阅 '+statusTopic,'ok');
+      log('已订阅 LWT: '+lwtTopic,'info');
+      mqttClient.publish('chemctrl/'+id+'/command',JSON.stringify({cmd:'get_status'}),{qos:1});
+      log('已发送 get_status 请求','cmd');
+    });
+    mqttClient.on('message',(topic,payload)=>{
+      const msg=payload.toString();
+      try{
+        const data=JSON.parse(msg);
+        if(topic===topics.status){
+          updateStatus(data);
+          log('收到状态: '+msg,'ok');
+        }else if(topic===topics.lwt){
+          const online=data.online;
+          log('LWT: '+(online?'设备上线':'设备离线'),online?'ok':'err');
+        }
+      }catch(e){
+        log('收到消息 ['+topic+']: '+msg,'info');
+      }
+    });
+    mqttClient.on('error',(err)=>{
+      log('MQTT 错误: '+err.message,'err');
+    });
+    mqttClient.on('close',()=>{
+      if(connected){
+        connected=false;
+        setConnStatus('disconnected','已断开');
+        el('btnConnect').disabled=false;el('btnDisconnect').disabled=true;
+        log('MQTT 连接已关闭','err');
+      }
+    });
+    mqttClient.on('offline',()=>{
+      log('MQTT 离线','err');
+    });
+  }catch(e){
+    log('连接失败: '+e.message,'err');
+    setConnStatus('disconnected','连接失败');
+  }
+}
+
+function disconnectMQTT(){
+  stopDemo();
+  if(mqttClient){
+    try{mqttClient.end(true)}catch(e){}
+    mqttClient=null;
+  }
+  connected=false;
+  setConnStatus('disconnected','已断开');
+  el('btnConnect').disabled=false;el('btnDisconnect').disabled=true;
+  log('已断开连接','info');
+}
+
+function sendCommand(cmdObj){
+  if(!connected&&!el('demoMode').checked){log('请先连接 MQTT','err');return}
+  const id=el('deviceId').value.trim();
+  const payload=JSON.stringify(cmdObj);
+  if(el('demoMode').checked){
+    log('[模拟] 发送命令: '+payload,'cmd');
+    if(cmdObj.cmd==='get_status'){
+      updateStatus({temperature:25.5,light:180,mode:'auto',key1_lock:true,relay3:false,relay4:true,temp_threshold:30,light_threshold:150});
+    }
+    if(cmdObj.cmd==='set_mode')updateStatus({mode:cmdObj.mode});
+    if(cmdObj.cmd==='set_relay'){
+      const r='relay'+cmdObj.relay;const u={};u[r]=cmdObj.value;updateStatus(u);
+    }
+    if(cmdObj.cmd==='set_threshold'){
+      const u={};if(cmdObj.temp!==undefined)u.temp_threshold=cmdObj.temp;
+      if(cmdObj.light!==undefined)u.light_threshold=cmdObj.light;
+      updateStatus(u);
+    }
+    return;
+  }
+  mqttClient.publish('chemctrl/'+id+'/command',payload,{qos:1});
+  log('发送命令: '+payload,'cmd');
+}
+
+// === Setup ===
+document.addEventListener('DOMContentLoaded',()=>{
+  el('btnConnect').addEventListener('click',connectMQTT);
+  el('btnDisconnect').addEventListener('click',disconnectMQTT);
+  el('btnClearLog').addEventListener('click',()=>el('logWrap').innerHTML='');
+  el('btnSetThreshold').addEventListener('click',()=>{
+    sendCommand({cmd:'set_threshold',temp:Number(el('tempThSlider').value),light:Number(el('lightThSlider').value)});
+  });
+  document.querySelectorAll('[data-cmd]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      try{sendCommand(JSON.parse(btn.getAttribute('data-cmd')))}catch(e){}
+    });
+  });
+  el('tempThSlider').addEventListener('input',function(){
+    el('tempThVal').textContent=this.value+' °C';
+  });
+  el('lightThSlider').addEventListener('input',function(){
+    el('lightThVal').textContent=this.value+' lux';
+  });
+
+  // hamburger
+  const hamburger=el('hamburger');
+  const navLinks=document.querySelector('.nav-links');
+  const navOverlay=el('navOverlay');
+  function toggleMenu(){
+    hamburger.classList.toggle('active');
+    navLinks.classList.toggle('open');
+    navOverlay.classList.toggle('open');
+  }
+  hamburger.addEventListener('click',toggleMenu);
+  navOverlay.addEventListener('click',toggleMenu);
+  document.querySelectorAll('.nav-links a').forEach(a=>a.addEventListener('click',()=>{
+    if(navLinks.classList.contains('open'))toggleMenu();
+  }));
+
+  // scroll reveal
+  const revealObserver=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');revealObserver.unobserve(e.target)}});
+  },{threshold:.08});
+  document.querySelectorAll('.reveal').forEach(el=>revealObserver.observe(el));
+
+  // nav scroll
+  const nav=document.getElementById('navbar');
+  window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',window.scrollY>60));
+
+  log('终端已就绪，请配置 MQTT 连接或启用离线模拟模式','info');
+});
+</script>
+</body>
+</html>
