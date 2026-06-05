@@ -136,9 +136,9 @@
 
 1) 通信协议 (固定, 来自上位机)
    -------------------------------------------------------------------------
-   Broker       : your_broker_ip:8081  (TCP, 非 SSL)
-   协议版本     : MQTT 3.1.1
-   用户名 / 密码: your_username / your_password
+    Broker       : your_broker_ip:8081  (TCP, 非 SSL)
+    协议版本     : MQTT 3.1.1
+    用户名 / 密码: your_username / your_password
    设备 ID      : 运行期变量, 默认 PCT_100_005 (version.h 中 DEVICE_ID_DEFAULT)
    上行 topic   : chemctrl/{id}/status   (10 字段 JSON)
    下行 topic   : chemctrl/{id}/command  (5 种 cmd)
@@ -175,10 +175,10 @@
    -------------------------------------------------------------------------
    MQTT                     帮助 (打印命令列表)
    MQTT SHOW                显示 5 项配置 + 连接状态
-   MQTT SET IP <ip>         例: MQTT SET IP your_broker_ip
-   MQTT SET PORT <port>     例: MQTT SET PORT 8081
-   MQTT SET USER <user>     例: MQTT SET USER your_username
-   MQTT SET PASS <pass>     例: MQTT SET PASS your_password
+    MQTT SET IP <ip>         例: MQTT SET IP your_broker_ip
+    MQTT SET PORT <port>     例: MQTT SET PORT 8081
+    MQTT SET USER <user>     例: MQTT SET USER your_username
+    MQTT SET PASS <pass>     例: MQTT SET PASS your_password
     MQTT SET ID <id>         例: MQTT SET ID PCT_100_005
     MQTT SET LIGHT_TH <lux>  例: MQTT SET LIGHT_TH 150   (V5.3)
     MQTT SET TEMP_TH  <°C>   例: MQTT SET TEMP_TH 30.0   (V5.3)
@@ -211,7 +211,7 @@
         Host        : your_broker_ip
         Port        : 8081
         Client ID   : 必须与设备不同, 建议 mqttx_<你名>_<序号>
-                      如 mqttx_lyg_001 (用设备 ID 会被 broker 踢)
+                       如 mqttx_lyg_001 (用设备 ID 会被 broker 踢)
         Username    : your_username
         Password    : your_password
         MQTT Version: 3.1.1
@@ -273,7 +273,7 @@
    【8. 常见问题】
       Q: MQTTX 连不上 broker?
       A: 1) 防火墙是否放行 8081 TCP 出站
-         2) PC 是否能 ping 通 your_broker_ip
+          2) PC 是否能 ping 通 your_broker_ip
          3) Keep Alive 不填也行, 默认 60
       Q: 订阅了但收不到 status?
       A: 1) QoS 必须选 1 (板子上行用 qos1)
@@ -364,7 +364,7 @@ V4.6   20260602  RGB 灯 WiFi 状态读取修复 (KEY1 OFF->ON 卡红):
                   - 修复 KEY1 ON 后 ESP32 WiFi 栈短暂抖动导致 LED 卡红色 bug
                   - 重启流程不受影响 (仍能正确变绿)
 V4.7   20260602  新增 MQTT 通信模块 (mqtt_mgr.h / mqtt_mgr.cpp):
-                  - Broker: your_broker_ip:8081, MQTT 3.1.1, your_username/your_password
+                   - Broker: your_broker_ip:8081, MQTT 3.1.1, your_username/your_password
                   - 设备 ID 用 version.h DEVICE_ID 宏 (烧录前改为丝印序列号)
                   - 上行 topic: chemctrl/{id}/status, 10 字段 JSON
                   - 下行 topic: chemctrl/{id}/command, 支持 5 种 cmd:
