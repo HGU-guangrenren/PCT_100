@@ -145,7 +145,10 @@ footer .highlight{color:var(--accent-cyan)}
 
 /* responsive */
 @media(max-width:768px){
-  .nav-links{display:none}
+  .nav-links{display:none;position:fixed;top:0;right:-280px;width:260px;height:100vh;background:var(--bg-secondary);flex-direction:column;padding:80px 24px 24px;gap:8px;transition:right .3s;z-index:99;overflow-y:auto}
+  .nav-links.open{right:0;display:flex}
+  .nav-links a{padding:12px 0;font-size:.9rem}
+  .hamburger{display:flex}
   .hero{padding:100px 20px 60px;min-height:auto}
   .overview-grid,.features-grid{grid-template-columns:1fr}
   .mqtt-grid{grid-template-columns:1fr}
@@ -153,6 +156,26 @@ footer .highlight{color:var(--accent-cyan)}
   .spec-table{font-size:.8rem}
   .spec-table th,.spec-table td{padding:10px 14px}
 }
+
+/* svg illustration container */
+.svg-ill{margin:24px 0;text-align:center}
+.svg-ill svg,.svg-ill img{max-width:100%;height:auto;border-radius:12px;box-shadow:0 4px 40px rgba(0,0,0,.4)}
+.svg-ill.inline{display:inline-block;margin:0}
+.hero-ill{flex-shrink:0;width:320px;margin-left:40px;position:relative}
+@media(max-width:900px){.hero-ill{width:220px;margin-left:0;margin-top:30px}}
+
+/* scroll reveal */
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .6s ease,transform .6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* hamburger */
+.hamburger{display:none;flex-direction:column;cursor:pointer;gap:5px;padding:4px;margin-left:auto;background:none;border:none}
+.hamburger span{display:block;width:22px;height:2px;background:var(--text-secondary);border-radius:2px;transition:all .3s}
+.hamburger.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+.hamburger.active span:nth-child(2){opacity:0}
+.hamburger.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+.nav-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:98}
+.nav-mobile-overlay.open{display:block}
 
 /* utility */
 .gap-8{gap:8px}
@@ -186,7 +209,11 @@ footer .highlight{color:var(--accent-cyan)}
       <li><a href="guide.html">入门指南</a></li>
     </ul>
     <div class="nav-version">V6.3</div>
+    <button class="hamburger" id="hamburger" aria-label="菜单">
+      <span></span><span></span><span></span>
+    </button>
   </div>
+  <div class="nav-mobile-overlay" id="navOverlay"></div>
 </nav>
 
 <section class="hero">
@@ -195,14 +222,17 @@ footer .highlight{color:var(--accent-cyan)}
     <div class="gradient-orb orb2"></div>
     <div class="gradient-orb orb3"></div>
   </div>
-  <div class="hero-content">
-    <div class="hero-badge">基于 ESP32 · 智能化工控制</div>
-    <h1>化工控制<em>实训装置</em></h1>
-    <p class="hero-sub">PCT_100_CTL 是一款面向化工实训场景的智能控制器，集成传感器采集、继电器控制、WiFi 配网与 MQTT 远程通信，可灵活切换自动/手动控制模式，满足教学实训与科研验证需求。</p>
-    <div class="hero-actions">
-      <a href="#overview" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> 开始阅读</a>
-      <a href="#specs" class="btn btn-outline">技术参数</a>
+  <div class="hero-content" style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;text-align:left">
+    <div style="flex:1;min-width:300px;text-align:center">
+      <div class="hero-badge">基于 ESP32 · 智能化工控制</div>
+      <h1>化工控制<em>实训装置</em></h1>
+      <p class="hero-sub" style="margin-left:auto;margin-right:auto">PCT_100_CTL 是一款面向化工实训场景的智能控制器，集成传感器采集、继电器控制、WiFi 配网与 MQTT 远程通信，可灵活切换自动/手动控制模式，满足教学实训与科研验证需求。</p>
+      <div class="hero-actions">
+        <a href="#overview" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> 开始阅读</a>
+        <a href="#specs" class="btn btn-outline">技术参数</a>
+      </div>
     </div>
+    <div class="hero-ill reveal visible" style="opacity:1;transform:none"><img src="images/device-hero.svg" alt="PCT_100 设备主机" style="width:100%;border-radius:12px;box-shadow:0 8px 48px rgba(6,182,212,.15)"></div>
   </div>
   <div class="hero-scroll">
     <span>向下滚动</span>
@@ -247,6 +277,15 @@ footer .highlight{color:var(--accent-cyan)}
         <p class="card-text">WS2812 万色灯珠，通过 6 种颜色与呼吸动画指示设备运行状态：正常/报警/WiFi 断连/MQTT 断连等，一目了然。</p>
       </div>
     </div>
+  </div>
+</section>
+
+<section id="architecture" class="reveal">
+  <div class="section-inner">
+    <div class="section-label">Architecture</div>
+    <h2 class="section-title">系统架构</h2>
+    <p class="section-desc">传感器采集数据 → ESP32 主控逻辑处理 → 执行器响应 &amp; 云端同步，完整的物联网闭环控制架构。</p>
+    <div class="svg-ill"><img src="images/architecture.svg" alt="系统架构图"></div>
   </div>
 </section>
 
@@ -460,6 +499,8 @@ footer .highlight{color:var(--accent-cyan)}
     <h2 class="section-title">MQTT 通信模块</h2>
     <p class="section-desc">设备通过 MQTT 协议与云端 Broker 通信，支持 5 种远程命令与 8 字段状态上报，LWT 遗嘱机制确保设备在线状态实时可靠。</p>
 
+    <div class="svg-ill reveal"><img src="images/mqtt-flow.svg" alt="MQTT 数据流图"></div>
+
     <h3 style="font-size:1rem;font-weight:600;margin-bottom:16px;color:var(--accent-cyan)">Topic 概览</h3>
     <div class="mqtt-grid">
       <div class="mqtt-item">
@@ -510,6 +551,7 @@ footer .highlight{color:var(--accent-cyan)}
     <div class="section-label">Pinout</div>
     <h2 class="section-title">引脚定义</h2>
     <p class="section-desc">ESP32 GPIO 引脚分配与功能说明。</p>
+    <div class="svg-ill reveal"><img src="images/pinout-diagram.svg" alt="GPIO 引脚分配图"></div>
     <table class="spec-table">
       <thead><tr><th>GPIO</th><th>功能</th><th>说明</th></tr></thead>
       <tbody>
@@ -627,6 +669,27 @@ const observer=new IntersectionObserver(entries=>{
   entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')});
 },{threshold:.1});
 document.querySelectorAll('.timeline-item').forEach(el=>observer.observe(el));
+
+// hamburger
+const hamburger=document.getElementById('hamburger');
+const navLinks=document.querySelector('.nav-links');
+const navOverlay=document.getElementById('navOverlay');
+function toggleMenu(){
+  hamburger.classList.toggle('active');
+  navLinks.classList.toggle('open');
+  navOverlay.classList.toggle('open');
+}
+hamburger.addEventListener('click',toggleMenu);
+navOverlay.addEventListener('click',toggleMenu);
+document.querySelectorAll('.nav-links a').forEach(a=>a.addEventListener('click',()=>{
+  if(navLinks.classList.contains('open'))toggleMenu();
+}));
+
+// scroll reveal
+const revealObserver=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');revealObserver.unobserve(e.target)}});
+},{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>revealObserver.observe(el));
 </script>
 </body>
 </html>

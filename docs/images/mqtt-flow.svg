@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 280" fill="none">
+<rect width="700" height="280" fill="#0a0e17" rx="12"/>
+<rect x="20" y="50" width="130" height="100" rx="8" fill="#1a2332" stroke="#06b6d4" stroke-width="1.5"/>
+<text x="85" y="90" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="600">PCT_100</text>
+<text x="85" y="108" text-anchor="middle" fill="#64748b" font-size="7">设备端</text>
+<text x="85" y="126" text-anchor="middle" fill="#64748b" font-size="6">ESP32 控制器</text>
+<rect x="420" y="50" width="130" height="100" rx="8" fill="#1a2332" stroke="#06b6d4" stroke-width="1.5"/>
+<text x="485" y="90" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="600">MQTT Broker</text>
+<text x="485" y="108" text-anchor="middle" fill="#64748b" font-size="7">your_broker_ip:8081</text>
+<text x="485" y="126" text-anchor="middle" fill="#64748b" font-size="6">EMQX</text>
+<rect x="550" y="170" width="130" height="80" rx="8" fill="#1a2332" stroke="#10b981" stroke-width="1.5"/>
+<text x="615" y="202" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">上位机 / MQTTX</text>
+<text x="615" y="222" text-anchor="middle" fill="#64748b" font-size="6">远程监控 & 下发命令</text>
+<rect x="20" y="170" width="130" height="80" rx="8" fill="#1a2332" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="85" y="202" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="600">传感器</text>
+<text x="85" y="222" text-anchor="middle" fill="#64748b" font-size="6">温度 / 光照 采集</text>
+<rect x="130" y="170" width="130" height="80" rx="8" fill="#1a2332" stroke="#f43f5e" stroke-width="1.5"/>
+<text x="195" y="202" text-anchor="middle" fill="#f43f5e" font-size="9" font-weight="600">执行器</text>
+<text x="195" y="222" text-anchor="middle" fill="#64748b" font-size="6">LED 灯 / 风扇</text>
+<path d="M150 100 L410 100" stroke="#10b981" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="280" y="88" text-anchor="middle" fill="#10b981" font-size="6">chemctrl/{id}/status (JSON)</text>
+<path d="M410 130 L150 130" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5 3"/>
+<text x="280" y="148" text-anchor="middle" fill="#f59e0b" font-size="6">chemctrl/{id}/command (5种)</text>
+<path d="M550 130 L410 130" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="4 3" opacity=".5"/>
+<text x="485" y="148" text-anchor="middle" fill="#64748b" font-size="6">MQTT 订阅</text>
+<line x1="150" y1="150" x2="150" y2="190" stroke="#64748b" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="260" y1="150" x2="260" y2="210" stroke="#64748b" stroke-width="1" stroke-dasharray="3 3"/>
+<text x="280" y="268" text-anchor="middle" fill="#64748b" font-size="7">LWT 遗嘱: chemctrl/{id}/lwt (设备离线自动通知)</text>
+</svg>

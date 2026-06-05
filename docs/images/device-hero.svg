@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" fill="none">
+<rect width="600" height="400" fill="#0a0e17" rx="16"/>
+<rect x="160" y="100" width="280" height="200" rx="8" fill="#1a2332" stroke="#4a5a6e" stroke-width="1.5"/>
+<rect x="245" y="145" width="70" height="50" rx="4" fill="#1a2332" stroke="#06b6d4" stroke-width="1.5"/>
+<text x="280" y="176" text-anchor="middle" fill="#06b6d4" font-size="8" font-family="monospace" font-weight="600">ESP32</text>
+<rect x="175" y="108" width="60" height="30" rx="3" fill="#0a0e17" stroke="#4a5a6e" stroke-width="1"/>
+<text x="205" y="126" text-anchor="middle" fill="#06b6d4" font-size="5" font-family="monospace">OLED</text>
+<rect x="155" y="265" width="50" height="24" rx="12" fill="#1a2332" stroke="#10b981" stroke-width="1.5"/>
+<text x="180" y="280" text-anchor="middle" fill="#10b981" font-size="6" font-family="monospace">DS18B20</text>
+<polygon points="320,265 345,248 370,265" fill="#1a2332" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="345" y="282" text-anchor="middle" fill="#f59e0b" font-size="6" font-family="monospace">LDR</text>
+<circle cx="370" cy="120" r="10" fill="#1a2332" stroke="#f43f5e" stroke-width="1.5"/>
+<text x="370" y="105" text-anchor="middle" fill="#f43f5e" font-size="5" font-family="monospace">RGB</text>
+<rect x="380" y="200" width="44" height="20" rx="3" fill="#1a2332" stroke="#06b6d4" stroke-width="1" opacity=".7"/>
+<text x="402" y="213" text-anchor="middle" fill="#06b6d4" font-size="5" font-family="monospace">继电器x2</text>
+<rect x="170" y="190" width="28" height="12" rx="2" fill="#1a2332" stroke="#94a3b8" stroke-width="1"/>
+<text x="184" y="198" text-anchor="middle" fill="#94a3b8" font-size="4" font-family="monospace">KEY1</text>
+<rect x="170" y="210" width="28" height="12" rx="2" fill="#1a2332" stroke="#94a3b8" stroke-width="1"/>
+<text x="184" y="218" text-anchor="middle" fill="#94a3b8" font-size="4" font-family="monospace">KEY2</text>
+<text x="300" y="330" text-anchor="middle" fill="#06b6d4" font-size="12" font-weight="700">PCT_100_CTL</text>
+<text x="300" y="348" text-anchor="middle" fill="#64748b" font-size="8" font-family="monospace">化工控制实训装置</text>
+</svg>

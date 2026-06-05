@@ -62,12 +62,43 @@ section{padding:80px 24px}
 .step-body li::before{content:'▸';position:absolute;left:0;color:var(--accent-amber)}
 .step-body code{font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--accent-amber);background:rgba(245,158,11,0.08);padding:1px 6px;border-radius:3px}
 
+/* svg illustration */
+.svg-ill{margin:24px 0;text-align:center}
+.svg-ill svg,.svg-ill img{max-width:100%;height:auto;border-radius:12px;box-shadow:0 4px 40px rgba(0,0,0,.4)}
+
+/* scroll reveal */
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .6s ease,transform .6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* step badge */
+.step-badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:.7rem;font-weight:500;margin-left:10px;vertical-align:middle}
+.step-badge.done{background:rgba(16,185,129,0.15);color:var(--accent-emerald)}
+.step-badge.hot{background:rgba(245,158,11,0.15);color:var(--accent-amber)}
+.step-badge.new{background:rgba(6,182,212,0.15);color:var(--accent-cyan)}
+
+/* hamburger */
+.hamburger{display:none;flex-direction:column;cursor:pointer;gap:5px;padding:4px;margin-left:auto;background:none;border:none}
+.hamburger span{display:block;width:22px;height:2px;background:var(--text-secondary);border-radius:2px;transition:all .3s}
+.hamburger.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+.hamburger.active span:nth-child(2){opacity:0}
+.hamburger.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+.nav-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:98}
+.nav-mobile-overlay.open{display:block}
+
 .tip-box{background:var(--bg-card);border:1px solid var(--border-dim);border-left:3px solid var(--accent-cyan);border-radius:8px;padding:20px;margin:32px 0}
 .tip-box p{font-size:.85rem;color:var(--text-secondary);line-height:1.7}
 
 footer{border-top:1px solid var(--border-dim);padding:40px 24px;text-align:center}
 footer p{font-size:.8rem;color:var(--text-muted)}
-@media(max-width:768px){.nav-links{gap:12px}.hero{min-height:auto;padding:80px 20px 40px}section{padding:50px 20px}.step{flex-direction:column;gap:12px}}
+@media(max-width:768px){
+  .nav-links{display:none;position:fixed;top:0;right:-280px;width:260px;height:100vh;background:var(--bg-secondary);flex-direction:column;padding:80px 24px 24px;gap:8px;transition:right .3s;z-index:99;overflow-y:auto}
+  .nav-links.open{right:0;display:flex}
+  .nav-links a{padding:12px 0;font-size:.9rem}
+  .hamburger{display:flex}
+  .hero{min-height:auto;padding:80px 20px 40px}
+  section{padding:50px 20px}
+  .step{flex-direction:column;gap:12px}
+}
 </style>
 </head>
 <body>
@@ -92,7 +123,11 @@ footer p{font-size:.8rem;color:var(--text-muted)}
       <li><a href="guide.html" class="active">入门指南</a></li>
     </ul>
     <div class="nav-version">V6.3</div>
+    <button class="hamburger" id="hamburger" aria-label="菜单">
+      <span></span><span></span><span></span>
+    </button>
   </div>
+  <div class="nav-mobile-overlay" id="navOverlay"></div>
 </nav>
 
 <section class="hero">
@@ -113,7 +148,7 @@ footer p{font-size:.8rem;color:var(--text-muted)}
     <div class="step">
       <div class="step-num">1</div>
       <div class="step-body">
-        <h3>硬件准备</h3>
+        <h3>硬件准备 <span class="step-badge done">必备</span></h3>
         <ul>
           <li>ESP32 / ESP32-C3 开发板 × 1</li>
           <li>0.96 寸 SH1106 OLED 显示屏 (I2C: SDA=GPIO4, SCL=GPIO5)</li>
@@ -127,10 +162,18 @@ footer p{font-size:.8rem;color:var(--text-muted)}
       </div>
     </div>
 
-    <div class="step">
+    <div class="step reveal">
+      <div class="step-num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top:2px"><path d="M4 5h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2z"/><path d="M8 5V3"/><path d="M16 5V3"/><path d="M12 9v4"/><path d="M10 11h4"/></svg></div>
+      <div class="step-body">
+        <h3>硬件接线参考 <span class="step-badge hot">参考</span></h3>
+        <div class="svg-ill"><img src="images/wiring-guide.svg" alt="硬件接线示意图"></div>
+      </div>
+    </div>
+
+    <div class="step reveal">
       <div class="step-num">2</div>
       <div class="step-body">
-        <h3>安装 Arduino IDE 与 ESP32 支持</h3>
+        <h3>安装 Arduino IDE 与 ESP32 支持 <span class="step-badge done">必备</span></h3>
         <ul>
           <li>下载安装 <a href="https://www.arduino.cc/en/software" target="_blank">Arduino IDE</a></li>
           <li>文件 → 首选项 → 附加开发板管理器地址，填入：<br><code>https://espressif.github.io/arduino-esp32/package_esp32_index.json</code></li>
@@ -140,10 +183,10 @@ footer p{font-size:.8rem;color:var(--text-muted)}
       </div>
     </div>
 
-    <div class="step">
+    <div class="step reveal">
       <div class="step-num">3</div>
       <div class="step-body">
-        <h3>安装依赖库</h3>
+        <h3>安装依赖库 <span class="step-badge done">必备</span></h3>
         <p>工具 → 管理库，搜索并安装以下库：</p>
         <ul>
           <li><code>PubSubClient</code> — MQTT 客户端</li>
@@ -156,10 +199,10 @@ footer p{font-size:.8rem;color:var(--text-muted)}
       </div>
     </div>
 
-    <div class="step">
+    <div class="step reveal">
       <div class="step-num">4</div>
       <div class="step-body">
-        <h3>烧录固件</h3>
+        <h3>烧录固件 <span class="step-badge hot">关键</span></h3>
         <ul>
           <li>打开 <code>PCT_100.ino</code> 项目文件</li>
           <li>确认开发板选择 <code>ESP32C3 Dev Module</code>，Flash 选 <code>4MB</code></li>
@@ -171,10 +214,10 @@ footer p{font-size:.8rem;color:var(--text-muted)}
       </div>
     </div>
 
-    <div class="step">
+    <div class="step reveal">
       <div class="step-num">5</div>
       <div class="step-body">
-        <h3>WiFi 配网</h3>
+        <h3>WiFi 配网 <span class="step-badge done">必备</span></h3>
         <p>默认配网模式为 <strong>SAVED</strong> (Flash 保存自动重连)：</p>
         <ul>
           <li>首次上电 → 串口打印扫描到的 WiFi 列表</li>
@@ -187,10 +230,10 @@ footer p{font-size:.8rem;color:var(--text-muted)}
       </div>
     </div>
 
-    <div class="step">
+    <div class="step reveal">
       <div class="step-num">6</div>
       <div class="step-body">
-        <h3>验证基本功能</h3>
+        <h3>验证基本功能 <span class="step-badge new">验证</span></h3>
         <ul>
           <li><strong>OLED 显示</strong>：开机后显示屏应显示模式、光照、温度、网络和继电器状态</li>
           <li><strong>RGB 灯</strong>：开机 4 秒 7 色循环 → WiFi 已连变绿呼吸 / 未连变红呼吸</li>
@@ -201,10 +244,10 @@ footer p{font-size:.8rem;color:var(--text-muted)}
       </div>
     </div>
 
-    <div class="step">
+    <div class="step reveal">
       <div class="step-num">7</div>
       <div class="step-body">
-        <h3>MQTT 远程调试（可选）</h3>
+        <h3>MQTT 远程调试 <span class="step-badge new">可选</span></h3>
         <ul>
           <li>PC 端安装 <a href="https://mqttx.app/zh" target="_blank">MQTTX</a> 客户端</li>
           <li>新建连接，填写配置信息（参见 <a href="index.html#mqtt">产品说明书 → MQTT</a>）</li>
@@ -228,6 +271,27 @@ footer p{font-size:.8rem;color:var(--text-muted)}
 <script>
 const nav=document.getElementById('navbar');
 window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',window.scrollY>60));
+
+// hamburger
+const hamburger=document.getElementById('hamburger');
+const navLinks=document.querySelector('.nav-links');
+const navOverlay=document.getElementById('navOverlay');
+function toggleMenu(){
+  hamburger.classList.toggle('active');
+  navLinks.classList.toggle('open');
+  navOverlay.classList.toggle('open');
+}
+hamburger.addEventListener('click',toggleMenu);
+navOverlay.addEventListener('click',toggleMenu);
+document.querySelectorAll('.nav-links a').forEach(a=>a.addEventListener('click',()=>{
+  if(navLinks.classList.contains('open'))toggleMenu();
+}));
+
+// scroll reveal
+const revealObserver=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');revealObserver.unobserve(e.target)}});
+},{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>revealObserver.observe(el));
 </script>
 </body>
 </html>
